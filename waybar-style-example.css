@@ -13,7 +13,6 @@
 /* Hover effect: show clickable */
 #custom-claude-usage:hover {
   background: rgba(222, 115, 86, 0.15);
-  cursor: pointer;
 }
 
 /* Color-coded by usage level */
@@ -43,7 +42,6 @@
 
 #custom-codex-usage:hover {
   background: rgba(116, 170, 156, 0.15);
-  cursor: pointer;
 }
 
 #custom-codex-usage.codex-low {
