@@ -19,7 +19,7 @@ This tool displays your AI coding assistant usage limits in real-time by reading
 - ⏰ Countdown timer until quota reset
 - 🚦 Color-coded warnings (green → yellow → red)
 - 🔄 Click to refresh instantly
-- 🍪 Uses browser cookies (Chrome, Firefox, Brave, Edge, Opera, Chromium, Vivaldi) - no API key needed
+- 🍪 Uses browser cookies (Chrome only) - no API key needed
 - 🎯 Special states: "Ready" (unused) and "Pause" (quota exhausted)
 - 🔁 Auto-retry on network errors
 
@@ -156,7 +156,7 @@ For **development mode**, use:
 
 ## Requirements
 
-- **Supported browser** (Chrome, Firefox, Brave, Edge, Opera, Chromium, or Vivaldi) with active login to:
+- **Chrome browser** with active login to:
   - [Claude.ai](https://claude.ai) for Claude Code monitoring
   - [ChatGPT](https://chatgpt.com) for Codex CLI monitoring
 - **Python 3.11+**
@@ -166,36 +166,36 @@ For **development mode**, use:
 
 ### "Cookie read failed" Error
 
-Make sure you're logged into Claude/ChatGPT in one of the supported browsers (Chrome, Firefox, Brave, Edge, Opera, Chromium, or Vivaldi). The tool will automatically try all available browsers and use the first one with valid cookies.
+Make sure you're logged into Claude/ChatGPT in Chrome:
 
-Test your browser cookies:
 ```bash
-# Test Claude cookies (example with Chrome)
+# Test Claude cookies
 python -c "import browser_cookie3; print(list(browser_cookie3.chrome(domain_name='claude.ai')))"
 
-# Test ChatGPT cookies (example with Firefox)
-python -c "import browser_cookie3; print(list(browser_cookie3.firefox(domain_name='chatgpt.com')))"
+# Test ChatGPT cookies
+python -c "import browser_cookie3; print(list(browser_cookie3.chrome(domain_name='chatgpt.com')))"
 ```
 
 ### "403 Forbidden" or "Net Err"
 
-1. Refresh the Claude/ChatGPT page in your browser
+1. Refresh the Claude/ChatGPT page in your Chrome browser
 2. Check if your IP is blocked by Cloudflare
 3. Update dependencies: `uv sync --upgrade`
 4. The tool has built-in retry (1 retry with 10s timeout)
 
-### Browser Support
+### Using Other Browsers
 
-The tool automatically tries all supported browsers in order and uses the first one with valid cookies:
-1. Chrome
-2. Firefox
-3. Brave
-4. Edge
-5. Opera
-6. Chromium
-7. Vivaldi
+Currently **only Chrome is supported**. To add support for other browsers, you'll need to modify the code:
 
-You don't need to configure anything - just make sure you're logged into Claude.ai or ChatGPT in at least one of these browsers.
+```python
+# In claude.py and codex.py, change:
+browser_cookie3.chrome(domain_name="...")
+
+# To one of:
+browser_cookie3.chromium(domain_name="...")
+browser_cookie3.firefox(domain_name="...")
+browser_cookie3.brave(domain_name="...")
+```
 
 ## Project Structure
 
@@ -232,6 +232,7 @@ waybar-ai-usage/
 
 Contributions are welcome! Areas for improvement:
 
+- [ ] Support for Firefox, Brave, Chromium browsers
 - [ ] Caching mechanism to reduce API calls
 - [ ] Additional AI service monitors
 - [ ] Better error messages
