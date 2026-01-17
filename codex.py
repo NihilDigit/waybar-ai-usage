@@ -27,12 +27,36 @@ CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 SCRIPT_DIR = Path(__file__).parent
 ICON_PATH = SCRIPT_DIR / "assets" / "codex.svg"
 
+# Supported browsers
+SUPPORTED_BROWSERS = [
+    ("chrome", browser_cookie3.chrome),
+    ("firefox", browser_cookie3.firefox),
+    ("brave", browser_cookie3.brave),
+    ("edge", browser_cookie3. edge),
+    ("opera", browser_cookie3.opera),
+    ("chromium", browser_cookie3. chromium),
+    ("vivaldi", browser_cookie3.vivaldi),
+]
+
 # ================= Network Logic =================
 
 def get_codex_usage() -> dict:
     try:
-        cj = browser_cookie3.chrome(domain_name="chatgpt.com")
-        cookies_dict = {c.name: c.value for c in cj}
+        cookies_dict = None
+        for browser_name, browser_func in SUPPORTED_BROWSERS:
+            try:
+                cj = browser_func(domain_name="chatgpt.com")
+                cookies_dict = {c.name: c.value for c in cj}
+                if cookies_dict:
+                    break
+            except Exception:
+                continue
+    
+        if not cookies_dict:
+            raise RuntimeError(
+                f"No valid cookies found.  Please log in to ChatGPT in one of: "
+                f"{', '.join(b[0] for b in SUPPORTED_BROWSERS)}"
+            )
     except Exception as e:
         raise RuntimeError(f"Failed to read browser cookies: {e}")
 

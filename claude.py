@@ -28,14 +28,37 @@ BASE_HEADERS = {
 SCRIPT_DIR = Path(__file__).parent
 ICON_PATH = SCRIPT_DIR / "assets" / "claude.svg"
 
+# Supported browsers
+SUPPORTED_BROWSERS = [
+    ("chrome", browser_cookie3.chrome),
+    ("firefox", browser_cookie3.firefox),
+    ("brave", browser_cookie3. brave),
+    ("edge", browser_cookie3.edge),
+    ("opera", browser_cookie3.opera),
+    ("chromium", browser_cookie3. chromium),
+    ("vivaldi", browser_cookie3. vivaldi),
+]
+
 
 # ==================== Core Logic: Get Usage ====================
 
 def get_claude_usage() -> dict:
     """Fetch Claude usage data using curl_cffi to impersonate Chrome"""
     try:
-        cj = browser_cookie3.chrome(domain_name=CLAUDE_DOMAIN)
-        cookies = {c.name: c.value for c in cj}
+        cookies = None
+        for browser_name, browser_func in SUPPORTED_BROWSERS:
+            try:
+                cj = browser_func(domain_name=CLAUDE_DOMAIN)
+                cookies = {c.name: c.value for c in cj}
+                if cookies. get("lastActiveOrg"):
+                    break
+            except Exception:
+                continue
+        if not cookies or not cookies.get("lastActiveOrg"):
+            raise RuntimeError(
+                f"No valid cookies found.  Please log in to Claude in one of: "
+                f"{', '.join(b[0] for b in SUPPORTED_BROWSERS)}"
+            )
     except Exception as e:
         raise RuntimeError(f"Failed to read cookies: {e}")
 
