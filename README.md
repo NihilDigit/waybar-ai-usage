@@ -35,7 +35,7 @@ uv tool install git+https://github.com/NihilDigit/waybar-ai-usage
 git clone https://github.com/NihilDigit/waybar-ai-usage
 cd waybar-ai-usage
 uv build
-uv tool install --force dist/waybar_ai_usage-0.1.0-py3-none-any.whl
+uv tool install --force dist/waybar_ai_usage-0.1.2-py3-none-any.whl
 ```
 
 ### Method 2: Development Mode
