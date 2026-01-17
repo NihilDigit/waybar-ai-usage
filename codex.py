@@ -4,12 +4,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict
 
 from curl_cffi import requests
-import browser_cookie3
 
-from common import parse_window_direct, format_eta
+from common import format_eta, load_cookies, parse_window_direct
 
 
 # ================= Configuration =================
@@ -29,10 +27,9 @@ ICON_PATH = SCRIPT_DIR / "assets" / "codex.svg"
 
 # ================= Network Logic =================
 
-def get_codex_usage() -> dict:
+def get_codex_usage(browsers: list[str] | None = None) -> dict:
     try:
-        cj = browser_cookie3.chrome(domain_name="chatgpt.com")
-        cookies_dict = {c.name: c.value for c in cj}
+        cookies_dict, _browser = load_cookies("chatgpt.com", browsers)
     except Exception as e:
         raise RuntimeError(f"Failed to read browser cookies: {e}")
 
@@ -184,10 +181,15 @@ def print_cli(usage: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--waybar", action="store_true")
+    parser.add_argument(
+        "--browser",
+        action="append",
+        help="Browser cookie source to try (repeatable). Example: --browser chromium",
+    )
     args = parser.parse_args()
 
     try:
-        usage = get_codex_usage()
+        usage = get_codex_usage(args.browser)
     except Exception as e:
         if args.waybar:
             err_msg = str(e)

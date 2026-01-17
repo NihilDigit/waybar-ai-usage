@@ -2,7 +2,7 @@
 
 Monitor **Claude Code** and **OpenAI Codex CLI** usage directly in your Waybar status bar.
 
-This tool displays your AI coding assistant usage limits in real-time by reading browser cookies from Chrome. No API keys needed!
+This tool displays your AI coding assistant usage limits in real-time by reading browser cookies (Chrome by default). No API keys needed!
 
 ## What This Monitors
 
@@ -19,7 +19,7 @@ This tool displays your AI coding assistant usage limits in real-time by reading
 - ⏰ Countdown timer until quota reset
 - 🚦 Color-coded warnings (green → yellow → red)
 - 🔄 Click to refresh instantly
-- 🍪 Uses browser cookies (Chrome only) - no API key needed
+- 🍪 Uses browser cookies (Chrome by default, configurable) - no API key needed
 - 🎯 Special states: "Ready" (unused) and "Pause" (quota exhausted)
 - 🔁 Auto-retry on network errors
 
@@ -61,6 +61,10 @@ codex-usage
 # Waybar JSON output
 claude-usage --waybar
 codex-usage --waybar
+
+# Use a specific browser (repeatable, tried in order)
+claude-usage --browser chromium --browser brave
+codex-usage --browser chromium
 ```
 
 In development mode:
@@ -140,7 +144,7 @@ pkill waybar && waybar &
 
 For **development mode**, use:
 ```jsonc
-"exec": "uv run --directory /path/to/waybar-ai-usage python claude.py --waybar",
+"exec": "uv run --directory /path/to/waybar-ai-usage python claude.py --waybar --browser chromium",
 ```
 
 ## Display States
@@ -156,7 +160,7 @@ For **development mode**, use:
 
 ## Requirements
 
-- **Chrome browser** with active login to:
+- **Chrome browser** (default) or another supported browser with active login to:
   - [Claude.ai](https://claude.ai) for Claude Code monitoring
   - [ChatGPT](https://chatgpt.com) for Codex CLI monitoring
 - **Python 3.11+**
@@ -166,14 +170,14 @@ For **development mode**, use:
 
 ### "Cookie read failed" Error
 
-Make sure you're logged into Claude/ChatGPT in Chrome:
+Make sure you're logged into Claude/ChatGPT in your chosen browser:
 
 ```bash
 # Test Claude cookies
-python -c "import browser_cookie3; print(list(browser_cookie3.chrome(domain_name='claude.ai')))"
+python -c "import browser_cookie3; print(list(browser_cookie3.chromium(domain_name='claude.ai')))"
 
 # Test ChatGPT cookies
-python -c "import browser_cookie3; print(list(browser_cookie3.chrome(domain_name='chatgpt.com')))"
+python -c "import browser_cookie3; print(list(browser_cookie3.chromium(domain_name='chatgpt.com')))"
 ```
 
 ### "403 Forbidden" or "Net Err"
@@ -185,16 +189,11 @@ python -c "import browser_cookie3; print(list(browser_cookie3.chrome(domain_name
 
 ### Using Other Browsers
 
-Currently **only Chrome is supported**. To add support for other browsers, you'll need to modify the code:
+You can select browsers in order using `--browser` (repeatable). Without it, the default order is: `chrome`, `chromium`, `brave`, `edge`, `firefox`.
 
-```python
-# In claude.py and codex.py, change:
-browser_cookie3.chrome(domain_name="...")
-
-# To one of:
-browser_cookie3.chromium(domain_name="...")
-browser_cookie3.firefox(domain_name="...")
-browser_cookie3.brave(domain_name="...")
+```bash
+claude-usage --browser chromium --browser brave
+codex-usage --browser chromium
 ```
 
 ## Project Structure
@@ -216,7 +215,7 @@ waybar-ai-usage/
 
 ## How It Works
 
-1. **Cookie Extraction**: Uses `browser_cookie3` to read authentication cookies from Chrome
+1. **Cookie Extraction**: Uses `browser_cookie3` to read authentication cookies from your chosen browser
 2. **API Requests**: Makes authenticated requests to Claude.ai and ChatGPT APIs using `curl_cffi`
 3. **Usage Parsing**: Extracts usage percentages and reset times from API responses
 4. **Waybar Output**: Formats data as JSON for Waybar's custom module

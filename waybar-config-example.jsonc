@@ -10,6 +10,8 @@
     // After 'uv tool install waybar-ai-usage':
     // IMPORTANT: Use full path to work with systemd-launched Waybar
     "exec": "~/.local/bin/claude-usage --waybar",
+    // Example for Chromium:
+    // "exec": "~/.local/bin/claude-usage --waybar --browser chromium",
 
     // Or for development mode:
     // "exec": "uv run --directory /home/YOUR_USER/Codes/waybar-ai-usage python claude.py --waybar",
@@ -27,6 +29,8 @@
     // After 'uv tool install waybar-ai-usage':
     // IMPORTANT: Use full path to work with systemd-launched Waybar
     "exec": "~/.local/bin/codex-usage --waybar",
+    // Example for Chromium:
+    // "exec": "~/.local/bin/codex-usage --waybar --browser chromium",
 
     // Or for development mode:
     // "exec": "uv run --directory /home/YOUR_USER/Codes/waybar-ai-usage python codex.py --waybar",

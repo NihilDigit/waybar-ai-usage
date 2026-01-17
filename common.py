@@ -3,7 +3,39 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Mapping, Optional
+from typing import Iterable, Mapping, Optional
+
+import browser_cookie3
+
+
+DEFAULT_BROWSERS = ("chrome", "chromium", "brave", "edge", "firefox")
+
+
+def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[dict, str]:
+    """Load cookies for a domain from the first available browser in order."""
+    browsers = list(browsers or DEFAULT_BROWSERS)
+    errors: list[str] = []
+
+    for name in browsers:
+        loader = getattr(browser_cookie3, name, None)
+        if loader is None:
+            errors.append(f"{name}: unsupported by browser_cookie3")
+            continue
+
+        try:
+            cj = loader(domain_name=domain)
+            cookies = {c.name: c.value for c in cj}
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+            continue
+
+        if cookies:
+            return cookies, name
+
+        errors.append(f"{name}: no cookies found")
+
+    detail = "; ".join(errors) if errors else "no browsers provided"
+    raise RuntimeError(f"Failed to read cookies for {domain}: {detail}")
 
 
 @dataclass

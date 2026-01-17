@@ -3,15 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Dict
 
-import os
 from pathlib import Path
 
 from curl_cffi import requests
-import browser_cookie3
 
-from common import parse_window_percent, format_eta
+from common import format_eta, load_cookies, parse_window_percent
 
 
 # ==================== Configuration ====================
@@ -31,11 +28,10 @@ ICON_PATH = SCRIPT_DIR / "assets" / "claude.svg"
 
 # ==================== Core Logic: Get Usage ====================
 
-def get_claude_usage() -> dict:
+def get_claude_usage(browsers: list[str] | None = None) -> dict:
     """Fetch Claude usage data using curl_cffi to impersonate Chrome"""
     try:
-        cj = browser_cookie3.chrome(domain_name=CLAUDE_DOMAIN)
-        cookies = {c.name: c.value for c in cj}
+        cookies, _browser = load_cookies(CLAUDE_DOMAIN, browsers)
     except Exception as e:
         raise RuntimeError(f"Failed to read cookies: {e}")
 
@@ -192,10 +188,15 @@ def main() -> None:
         action="store_true",
         help="Output in JSON format for Waybar custom module",
     )
+    parser.add_argument(
+        "--browser",
+        action="append",
+        help="Browser cookie source to try (repeatable). Example: --browser chromium",
+    )
     args = parser.parse_args()
 
     try:
-        usage = get_claude_usage()
+        usage = get_claude_usage(args.browser)
     except Exception as e:
         if args.waybar:
             err_msg = str(e)
