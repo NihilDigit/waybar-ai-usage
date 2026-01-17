@@ -9,9 +9,122 @@ import json5
 DEFAULT_CONFIG = Path("~/.config/waybar/config.jsonc").expanduser()
 DEFAULT_STYLE = Path("~/.config/waybar/style.css").expanduser()
 
+TEMPLATE_CONFIG = """// Waybar Configuration Example
+// Add this configuration to the modules section of ~/.config/waybar/config.jsonc
+//
+// After installing with: uv tool install waybar-ai-usage
+// Or for development mode, use the full path with uv run
+
+{
+  // Claude Code Usage Monitor
+  "custom/claude-usage": {
+    // After 'uv tool install waybar-ai-usage':
+    // IMPORTANT: Use full path to work with systemd-launched Waybar
+    "exec": "~/.local/bin/claude-usage --waybar",
+    // Example for Chromium:
+    // "exec": "~/.local/bin/claude-usage --waybar --browser chromium",
+
+    // Or for development mode:
+    // "exec": "uv run --directory /home/YOUR_USER/Codes/waybar-ai-usage python claude.py --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+8 waybar",  // Click to refresh immediately
+    "signal": 8  // Refresh when receiving signal 8
+  },
+
+  // OpenAI Codex CLI Usage Monitor
+  "custom/codex-usage": {
+    // After 'uv tool install waybar-ai-usage':
+    // IMPORTANT: Use full path to work with systemd-launched Waybar
+    "exec": "~/.local/bin/codex-usage --waybar",
+    // Example for Chromium:
+    // "exec": "~/.local/bin/codex-usage --waybar --browser chromium",
+
+    // Or for development mode:
+    // "exec": "uv run --directory /home/YOUR_USER/Codes/waybar-ai-usage python codex.py --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+9 waybar",  // Click to refresh immediately
+    "signal": 9  // Refresh when receiving signal 9
+  }
+}
+"""
+
+TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
+#custom-claude-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect: show clickable */
+#custom-claude-usage:hover {
+  background: rgba(222, 115, 86, 0.15);
+}
+
+/* Color-coded by usage level */
+#custom-claude-usage.claude-low {
+  color: #a6e3a1;  /* Green: low usage (0-49%) */
+}
+
+#custom-claude-usage.claude-mid {
+  color: #f9e2af;  /* Yellow: medium usage (50-79%) */
+}
+
+#custom-claude-usage.claude-high {
+  color: #f38ba8;  /* Red: high usage (80-99%) */
+}
+
+/* OpenAI Codex CLI Usage Monitor Styling */
+#custom-codex-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-codex-usage:hover {
+  background: rgba(116, 170, 156, 0.15);
+}
+
+#custom-codex-usage.codex-low {
+  color: #a6e3a1;  /* Green: low usage */
+}
+
+#custom-codex-usage.codex-mid {
+  color: #f9e2af;  /* Yellow: medium usage */
+}
+
+#custom-codex-usage.codex-high {
+  color: #f38ba8;  /* Red: high usage */
+}
+
+/* Error state (network failures, auth errors, etc.) */
+#custom-claude-usage.critical,
+#custom-codex-usage.critical {
+  color: #ff5555;
+  background: rgba(255, 85, 85, 0.1);
+}
+"""
+
 
 def _confirm_changes(paths: Iterable[Path]) -> bool:
-    print("注意：将重写 Waybar 配置，格式和注释可能会变化。")
+    print("Note: this will rewrite your Waybar config; formatting/comments may change.")
     print("This will modify the following files:")
     for path in paths:
         print(f"- {path}")
@@ -117,6 +230,12 @@ def _dump_json5(data: dict) -> str:
     return json5.dumps(data, indent=2)
 
 
+def _read_template(path: Path, fallback: str) -> str:
+    if path.exists():
+        return path.read_text()
+    return fallback
+
+
 def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
     if not config_path.exists():
         print(f"Config not found: {config_path}")
@@ -162,6 +281,8 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
                 print(f"Updated: {style_path}")
         else:
             print(f"No changes needed in: {style_path}")
+    if not dry_run:
+        print("Please restart Waybar to apply changes (e.g. `pkill waybar && waybar &`).")
 
 
 def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None, dry_run: bool) -> None:
@@ -169,8 +290,10 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
     example_style = Path(__file__).with_name("waybar-style-example.css")
     style_lines = style_path.read_text().splitlines() if style_path.exists() else []
 
-    example_config_data = json5.loads(example_config.read_text())
-    example_style_lines = example_style.read_text().splitlines()
+    example_config_text = _read_template(example_config, TEMPLATE_CONFIG)
+    example_style_text = _read_template(example_style, TEMPLATE_STYLE)
+    example_config_data = json5.loads(example_config_text)
+    example_style_lines = example_style_text.splitlines()
     css_region = _extract_style_region(example_style_lines)
 
     if config_path.exists():
@@ -239,6 +362,7 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
         style_path.parent.mkdir(parents=True, exist_ok=True)
         style_path.write_text("\n".join(updated_style) + "\n")
         print(f"Updated: {style_path}")
+    print("Please restart Waybar to apply changes (e.g. `pkill waybar && waybar &`).")
 
 
 def main() -> None:
