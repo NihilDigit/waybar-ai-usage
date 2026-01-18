@@ -2,6 +2,8 @@
 
 Monitor **Claude Code** and **OpenAI Codex CLI** usage directly in your Waybar status bar.
 
+![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
+
 This tool displays your AI coding assistant usage limits in real-time by reading browser cookies (Chrome by default). No API keys needed!
 
 ## What This Monitors
