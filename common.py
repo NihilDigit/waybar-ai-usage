@@ -112,3 +112,59 @@ def format_eta(reset_at: str | int | None) -> str:
     mins = secs // 60
     secs_rem = secs % 60
     return f"{mins}m{secs_rem:02}s"
+
+
+def format_output(format_string: str, data: dict) -> str:
+    """
+    Format output using a template string with placeholders.
+
+    Available placeholders:
+    - {5h_pct} - 5-hour utilization percentage (no decimals)
+    - {7d_pct} - 7-day utilization percentage (no decimals)
+    - {5h_reset} - 5-hour reset time (formatted)
+    - {7d_reset} - 7-day reset time (formatted)
+    - {icon} - service icon
+    - {time_icon} - time icon
+    - {status} - status text (Ready, Pause, or empty)
+    - {pct} - active window percentage
+    - {reset} - active window reset time
+
+    Conditional sections:
+    - {?5h_reset}...{/5h_reset} - show content only if 5h_reset is not "Not started"
+    - {?7d_reset}...{/7d_reset} - show content only if 7d_reset is not "Not started"
+    - {?5h_reset&7d_reset}...{/} - show content only if both are not "Not started"
+
+    Example:
+        format_output("{icon} {5h_pct}% {time_icon} {5h_reset}", data)
+        format_output("{?5h_reset}{5h_pct}/{5h_reset}{/5h_reset}{?5h_reset&7d_reset} - {/}{?7d_reset}{7d_pct}/{7d_reset}{/7d_reset}", data)
+    """
+    import re
+    
+    # Process conditional blocks with multiple variables: {?var1&var2&...}content{/}
+    def replace_multi_conditional(match):
+        var_names = match.group(1).split('&')
+        content = match.group(2)
+        # Check if all variables exist and are not "Not started"
+        all_valid = all(data.get(v.strip(), "") and data.get(v.strip(), "") != "Not started" for v in var_names)
+        if all_valid:
+            return content.format(**data)
+        return ""
+    
+    # Replace multi-variable conditional blocks first: {?var1&var2}content{/}
+    result = re.sub(r'\{\?([^}]+&[^}]+)\}(.*?)\{/\}', replace_multi_conditional, format_string)
+    
+    # Process single variable conditional blocks: {?var}content{/var}
+    def replace_conditional(match):
+        var_name = match.group(1)
+        content = match.group(2)
+        value = data.get(var_name, "")
+        # Show content only if value exists and is not "Not started"
+        if value and value != "Not started":
+            return content.format(**data)
+        return ""
+    
+    # Replace single-variable conditional blocks: {?var}content{/var}
+    result = re.sub(r'\{\?(\w+)\}(.*?)\{/\1\}', replace_conditional, result)
+    
+    # Replace remaining placeholders
+    return result.format(**data)
