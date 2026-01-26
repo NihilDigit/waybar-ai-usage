@@ -332,11 +332,20 @@ waybar-ai-usage/
 Contributions are welcome! Areas for improvement:
 
 - [x] Support for Firefox, Brave, Chromium browsers
-- [ ] Better UX for setup/cleanup (preview changes, restore helper)
-- [ ] Caching mechanism to reduce API calls
+- [x] Better UX for setup/cleanup (preview changes, restore helper)
+- [x] Caching mechanism to reduce API calls (v0.4.0+)
 - [ ] Additional AI service monitors
 - [ ] Better error messages
-- [ ] Screenshot examples
+- [ ] More examples and screenshots
+
+### For Maintainers
+
+See [RELEASING.md](RELEASING.md) for release process documentation.
+
+Quick release:
+```bash
+./release.sh 0.4.1
+```
 
 ## License
 
