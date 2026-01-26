@@ -8,7 +8,7 @@ from pathlib import Path
 
 from curl_cffi import requests
 
-from common import format_eta, load_cookies, parse_window_percent, format_output
+from common import format_eta, load_cookies, parse_window_percent, format_output, get_cached_or_fetch
 
 
 # ==================== Configuration ====================
@@ -28,8 +28,8 @@ ICON_PATH = SCRIPT_DIR / "assets" / "claude.svg"
 
 # ==================== Core Logic: Get Usage ====================
 
-def get_claude_usage(browsers: list[str] | None = None) -> dict:
-    """Fetch Claude usage data using curl_cffi to impersonate Chrome"""
+def _fetch_claude_usage_uncached(browsers: list[str] | None = None) -> dict:
+    """Internal function to fetch Claude usage data without caching"""
     try:
         cookies, _browser = load_cookies(CLAUDE_DOMAIN, browsers)
     except Exception as e:
@@ -69,6 +69,16 @@ def get_claude_usage(browsers: list[str] | None = None) -> dict:
 
     # Both attempts failed
     raise RuntimeError(f"Request failed: {last_error}")
+
+
+def get_claude_usage(browsers: list[str] | None = None) -> dict:
+    """
+    Fetch Claude usage data using curl_cffi to impersonate Chrome.
+
+    Uses file-based caching to prevent multiple Waybar instances (one per monitor)
+    from making concurrent API requests that might be rate-limited.
+    """
+    return get_cached_or_fetch("claude", lambda: _fetch_claude_usage_uncached(browsers))
 
 
 # ==================== Output: CLI / Waybar ====================

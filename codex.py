@@ -7,7 +7,7 @@ from pathlib import Path
 
 from curl_cffi import requests
 
-from common import format_eta, load_cookies, parse_window_direct, format_output
+from common import format_eta, load_cookies, parse_window_direct, format_output, get_cached_or_fetch
 
 
 # ================= Configuration =================
@@ -27,7 +27,8 @@ ICON_PATH = SCRIPT_DIR / "assets" / "codex.svg"
 
 # ================= Network Logic =================
 
-def get_codex_usage(browsers: list[str] | None = None) -> dict:
+def _fetch_codex_usage_uncached(browsers: list[str] | None = None) -> dict:
+    """Internal function to fetch Codex usage data without caching"""
     try:
         cookies_dict, _browser = load_cookies("chatgpt.com", browsers)
     except Exception as e:
@@ -78,6 +79,16 @@ def get_codex_usage(browsers: list[str] | None = None) -> dict:
 
     # Both attempts failed
     raise RuntimeError(f"Request failed: {last_error}")
+
+
+def get_codex_usage(browsers: list[str] | None = None) -> dict:
+    """
+    Fetch ChatGPT Codex usage data.
+
+    Uses file-based caching to prevent multiple Waybar instances (one per monitor)
+    from making concurrent API requests that might be rate-limited.
+    """
+    return get_cached_or_fetch("codex", lambda: _fetch_codex_usage_uncached(browsers))
 
 
 # ================= Output Logic =================

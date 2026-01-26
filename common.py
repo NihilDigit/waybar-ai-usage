@@ -1,14 +1,103 @@
 """Common utilities shared between claude.py and codex.py"""
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable, Mapping, Optional
+from pathlib import Path
+from typing import Callable, Iterable, Mapping, Optional
 
 import browser_cookie3
 
 
 DEFAULT_BROWSERS = ("chrome", "chromium", "brave", "edge", "firefox")
+
+# Cache configuration
+CACHE_DIR = Path.home() / ".cache" / "waybar-ai-usage"
+CACHE_TTL = 60  # Cache valid for 60 seconds
+
+
+def get_cached_or_fetch(
+    cache_name: str,
+    fetch_func: Callable[[], dict],
+    ttl: int = CACHE_TTL
+) -> dict:
+    """
+    Get data from cache if fresh, otherwise fetch and cache.
+
+    This prevents multiple Waybar instances (one per monitor) from making
+    concurrent API requests that might be rate-limited.
+
+    Args:
+        cache_name: Name of cache file (e.g., "claude", "codex")
+        fetch_func: Function to call to fetch fresh data
+        ttl: Cache time-to-live in seconds
+
+    Returns:
+        Cached or freshly fetched data
+    """
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    cache_file = CACHE_DIR / f"{cache_name}.json"
+    updating_file = CACHE_DIR / f"{cache_name}.updating"
+
+    # Check if cache is fresh
+    if cache_file.exists():
+        cache_age = time.time() - cache_file.stat().st_mtime
+        if cache_age < ttl:
+            # Cache is fresh, use it
+            try:
+                with open(cache_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                # Cache file corrupted, proceed to fetch
+                pass
+
+    # Check if another process is already updating
+    if updating_file.exists():
+        update_age = time.time() - updating_file.stat().st_mtime
+        # If update marker is older than 5 seconds, assume stale and proceed
+        if update_age < 5:
+            # Wait briefly for the other process to finish
+            for _ in range(6):  # Wait up to 3 seconds (6 * 0.5s)
+                time.sleep(0.5)
+                if cache_file.exists():
+                    cache_age = time.time() - cache_file.stat().st_mtime
+                    if cache_age < ttl + 10:  # Accept slightly older cache when waiting
+                        try:
+                            with open(cache_file, 'r') as f:
+                                return json.load(f)
+                        except Exception:
+                            pass
+
+    # Need to fetch fresh data
+    # Create updating marker
+    try:
+        updating_file.touch()
+    except Exception:
+        pass
+
+    try:
+        # Fetch fresh data
+        data = fetch_func()
+
+        # Save to cache
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(data, f)
+        except Exception:
+            # Failed to save cache, but we have the data
+            pass
+
+        return data
+
+    finally:
+        # Always remove updating marker
+        try:
+            updating_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[dict, str]:
