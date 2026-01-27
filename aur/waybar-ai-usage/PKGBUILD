@@ -1,7 +1,7 @@
 # Maintainer: NihilDigit <starse.nd233@gmail.com>
 
 pkgname=waybar-ai-usage
-pkgver=0.4.0
+pkgver=0.4.5
 pkgrel=1
 pkgdesc='Monitor Claude Code and OpenAI Codex CLI usage in Waybar'
 arch=('any')

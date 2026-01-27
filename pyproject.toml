@@ -1,6 +1,6 @@
 [project]
 name = "waybar-ai-usage"
-version = "0.4.0"
+version = "0.4.5"
 description = "Monitor Claude and ChatGPT API usage in Waybar via browser cookies"
 readme = "README.md"
 requires-python = ">=3.11"
