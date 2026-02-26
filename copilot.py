@@ -140,7 +140,7 @@ def print_waybar(
     icon_styled = f"<span foreground='{COPILOT_COLOR}' size='large'>{COPILOT_ICON} </span>"
     time_icon_styled = f"<span foreground='{COPILOT_COLOR}' size='large'>\U000f051a</span>"  # 󰔚
 
-    used_str = str(int(used)) if used == int(used) else str(used)
+    used_str = str(int(used)) if used % 1 == 0 else str(used)
 
     data = {
         "icon": icon_styled,

@@ -1,31 +1,85 @@
-/* AI Usage Monitor Styling */
-#custom-claude-usage,
-#custom-codex-usage,
-#custom-copilot-usage {
-  margin: 0 7.5px;
+/* Claude Code Usage Monitor Styling */
+#custom-claude-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-#custom-claude-usage:hover,
-#custom-codex-usage:hover,
-#custom-copilot-usage:hover {
-  background: transparent;
+/* Hover effect: show clickable */
+#custom-claude-usage:hover {
+  background: rgba(222, 115, 86, 0.15);
 }
 
 /* Color-coded by usage level */
-#custom-claude-usage.claude-low,
-#custom-codex-usage.codex-low,
+#custom-claude-usage.claude-low {
+  color: #a6e3a1;  /* Green: low usage (0-49%) */
+}
+
+#custom-claude-usage.claude-mid {
+  color: #f9e2af;  /* Yellow: medium usage (50-79%) */
+}
+
+#custom-claude-usage.claude-high {
+  color: #f38ba8;  /* Red: high usage (80-99%) */
+}
+
+/* OpenAI Codex CLI Usage Monitor Styling */
+#custom-codex-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-codex-usage:hover {
+  background: rgba(116, 170, 156, 0.15);
+}
+
+#custom-codex-usage.codex-low {
+  color: #a6e3a1;  /* Green: low usage */
+}
+
+#custom-codex-usage.codex-mid {
+  color: #f9e2af;  /* Yellow: medium usage */
+}
+
+#custom-codex-usage.codex-high {
+  color: #f38ba8;  /* Red: high usage */
+}
+
+/* GitHub Copilot Usage Monitor Styling */
+#custom-copilot-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-copilot-usage:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
 #custom-copilot-usage.copilot-low {
   color: #a6e3a1;  /* Green: low usage (0-49%) */
 }
 
-#custom-claude-usage.claude-mid,
-#custom-codex-usage.codex-mid,
 #custom-copilot-usage.copilot-mid {
   color: #f9e2af;  /* Yellow: medium usage (50-79%) */
 }
 
-#custom-claude-usage.claude-high,
-#custom-codex-usage.codex-high,
 #custom-copilot-usage.copilot-high {
   color: #f38ba8;  /* Red: high usage (80-99%) */
 }

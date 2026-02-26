@@ -1,10 +1,10 @@
 # Waybar AI Usage
 
-Monitor **Claude Code** and **OpenAI Codex CLI** usage directly in your Waybar status bar.
+Monitor **Claude Code**, **OpenAI Codex CLI**, and **GitHub Copilot** usage directly in your Waybar status bar.
 
 ![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
 
-This tool displays your AI coding assistant usage limits in real-time by reading browser cookies (Chrome by default). No API keys needed!
+This tool displays your AI coding assistant usage limits in real-time by reading browser cookies (Chrome by default) or API tokens. No API keys needed for Claude and Codex!
 
 ## What This Monitors
 
@@ -159,7 +159,7 @@ uv run python codex.py
 uv tool install waybar-ai-usage
 ```
 
-After installation, the commands `claude-usage` and `codex-usage` will be available in your PATH.
+After installation, the commands `claude-usage`, `codex-usage`, and `copilot-usage` will be available in your PATH.
 
 #### Step 2: Run setup
 
@@ -168,6 +168,7 @@ waybar-ai-usage setup
 ```
 
 This will add the required Waybar modules and styles (with backup + confirmation).
+Copilot module is only added if `~/.config/waybar-ai-usage/copilot.conf` exists (see [GitHub Copilot Setup](#github-copilot-setup)).
 If you want to force a specific browser order in Waybar, pass it here:
 ```bash
 waybar-ai-usage setup --browser chromium --browser brave
@@ -366,9 +367,10 @@ waybar-ai-usage/
 
 ## How It Works
 
-1. **Cookie Extraction**: Uses `browser_cookie3` to read authentication cookies from your chosen browser
-2. **API Requests**: Makes authenticated requests to Claude.ai and ChatGPT APIs using `curl_cffi`
-3. **Usage Parsing**: Extracts usage percentages and reset times from API responses
+1. **Cookie Extraction**: Uses `browser_cookie3` to read authentication cookies from your chosen browser (Claude/Codex)
+2. **Token Auth**: GitHub Copilot uses a Personal Access Token stored in a local config file
+3. **API Requests**: Makes authenticated requests to Claude.ai, ChatGPT, and GitHub APIs
+4. **Usage Parsing**: Extracts usage percentages and reset times from API responses
 4. **Waybar Output**: Formats data as JSON for Waybar's custom module
 5. **Auto-refresh**: Waybar polls every 2 minutes (configurable via `interval`)
 
@@ -385,7 +387,7 @@ Contributions are welcome! Areas for improvement:
 - [x] Support for Firefox, Brave, Chromium browsers
 - [x] Better UX for setup/cleanup (preview changes, restore helper)
 - [x] Caching mechanism to reduce API calls (v0.4.0+)
-- [ ] Additional AI service monitors
+- [x] GitHub Copilot premium request monitoring (v0.5.0+)
 - [ ] Better error messages
 - [ ] More examples and screenshots
 
@@ -395,7 +397,7 @@ See [RELEASING.md](RELEASING.md) for release process documentation.
 
 Quick release:
 ```bash
-./release.sh 0.4.1
+./release.sh 0.5.0
 ```
 
 ## License

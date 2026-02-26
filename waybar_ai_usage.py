@@ -70,34 +70,88 @@ TEMPLATE_CONFIG = """// Waybar Configuration Example
 }
 """
 
-TEMPLATE_STYLE = """/* AI Usage Monitor Styling */
-#custom-claude-usage,
-#custom-codex-usage,
-#custom-copilot-usage {
-  margin: 0 7.5px;
+TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
+#custom-claude-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-#custom-claude-usage:hover,
-#custom-codex-usage:hover,
-#custom-copilot-usage:hover {
-  background: transparent;
+/* Hover effect: show clickable */
+#custom-claude-usage:hover {
+  background: rgba(222, 115, 86, 0.15);
 }
 
 /* Color-coded by usage level */
-#custom-claude-usage.claude-low,
-#custom-codex-usage.codex-low,
+#custom-claude-usage.claude-low {
+  color: #a6e3a1;  /* Green: low usage (0-49%) */
+}
+
+#custom-claude-usage.claude-mid {
+  color: #f9e2af;  /* Yellow: medium usage (50-79%) */
+}
+
+#custom-claude-usage.claude-high {
+  color: #f38ba8;  /* Red: high usage (80-99%) */
+}
+
+/* OpenAI Codex CLI Usage Monitor Styling */
+#custom-codex-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-codex-usage:hover {
+  background: rgba(116, 170, 156, 0.15);
+}
+
+#custom-codex-usage.codex-low {
+  color: #a6e3a1;  /* Green: low usage */
+}
+
+#custom-codex-usage.codex-mid {
+  color: #f9e2af;  /* Yellow: medium usage */
+}
+
+#custom-codex-usage.codex-high {
+  color: #f38ba8;  /* Red: high usage */
+}
+
+/* GitHub Copilot Usage Monitor Styling */
+#custom-copilot-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-copilot-usage:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
 #custom-copilot-usage.copilot-low {
   color: #a6e3a1;  /* Green: low usage (0-49%) */
 }
 
-#custom-claude-usage.claude-mid,
-#custom-codex-usage.codex-mid,
 #custom-copilot-usage.copilot-mid {
   color: #f9e2af;  /* Yellow: medium usage (50-79%) */
 }
 
-#custom-claude-usage.claude-high,
-#custom-codex-usage.codex-high,
 #custom-copilot-usage.copilot-high {
   color: #f38ba8;  /* Red: high usage (80-99%) */
 }
@@ -137,13 +191,13 @@ def _pick_latest_backup(path: Path) -> Path | None:
 
 
 def _find_style_region(lines: list[str]) -> tuple[int, int] | None:
-    start_marker = "/* Claude Code Usage Monitor Styling */"
+    start_markers = ("/* Claude Code Usage Monitor Styling */", "/* AI Usage Monitor Styling */")
     end_marker = "/* Error state (network failures, auth errors, etc.) */"
     start_idx = None
     end_idx = None
 
     for i, line in enumerate(lines):
-        if start_idx is None and start_marker in line:
+        if start_idx is None and any(m in line for m in start_markers):
             start_idx = i
         if end_marker in line:
             end_idx = i
@@ -241,12 +295,10 @@ def _read_template(path: Path, fallback: str) -> str:
 
 
 def _resolve_exec_base() -> str:
-    if (Path("/usr/bin/claude-usage").exists() and Path("/usr/bin/codex-usage").exists()
-            and Path("/usr/bin/copilot-usage").exists()):
+    binaries = ("claude-usage", "codex-usage", "copilot-usage")
+    if any(Path(f"/usr/bin/{b}").exists() for b in binaries):
         return "/usr/bin"
-    if (Path("~/.local/bin/claude-usage").expanduser().exists()
-            and Path("~/.local/bin/codex-usage").expanduser().exists()
-            and Path("~/.local/bin/copilot-usage").expanduser().exists()):
+    if any(Path(f"~/.local/bin/{b}").expanduser().exists() for b in binaries):
         return "~/.local/bin"
     return DEFAULT_EXEC
 
@@ -327,15 +379,25 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
         config_data["modules-left"] = modules_left
         changed_config = True
 
-    for name in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage"):
+    for name in ("custom/claude-usage", "custom/codex-usage"):
         if name not in modules_left:
             modules_left.append(name)
             changed_config = True
 
-    for key in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage"):
+    # Only add copilot module if the user has configured a token
+    copilot_conf = Path("~/.config/waybar-ai-usage/copilot.conf").expanduser()
+    if copilot_conf.exists() and "custom/copilot-usage" not in modules_left:
+        modules_left.append("custom/copilot-usage")
+        changed_config = True
+
+    for key in ("custom/claude-usage", "custom/codex-usage"):
         if key not in config_data and key in example_config_data:
             config_data[key] = example_config_data[key]
             changed_config = True
+
+    if copilot_conf.exists() and "custom/copilot-usage" not in config_data and "custom/copilot-usage" in example_config_data:
+        config_data["custom/copilot-usage"] = example_config_data["custom/copilot-usage"]
+        changed_config = True
 
     if browsers:
         flags = " ".join(f"--browser {b}" for b in browsers)

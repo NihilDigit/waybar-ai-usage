@@ -1,11 +1,11 @@
 [project]
 name = "waybar-ai-usage"
-version = "0.4.6"
-description = "Monitor Claude and ChatGPT API usage in Waybar via browser cookies"
+version = "0.5.0"
+description = "Monitor Claude, ChatGPT, and GitHub Copilot usage in Waybar"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["waybar", "claude", "chatgpt", "openai", "usage", "monitor"]
+keywords = ["waybar", "claude", "chatgpt", "openai", "copilot", "github", "usage", "monitor"]
 authors = [
     { name = "NihilDigit" }
 ]
