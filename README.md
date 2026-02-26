@@ -14,6 +14,9 @@ This tool displays your AI coding assistant usage limits in real-time by reading
 - **OpenAI Codex CLI**: OpenAI's command-line coding assistant
   - Primary (5-hour) window
   - Secondary (7-day) window
+- **GitHub Copilot**: Monthly premium request quota (Pro/Pro+)
+  - Requests consumed vs. included quota (default: 300)
+  - Countdown to monthly reset (1st of month, 00:00 UTC)
 
 ## Features
 
@@ -54,6 +57,48 @@ cd waybar-ai-usage
 uv sync
 ```
 
+## GitHub Copilot Setup
+
+Unlike Claude and Codex, Copilot uses a **GitHub Personal Access Token** instead of browser cookies.
+
+### 1. Create a Fine-Grained PAT
+
+1. Go to **GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens**
+2. Click **"Generate new token"**
+3. Set a name (e.g. `waybar-copilot`) and expiration
+4. Under **User permissions** → find **Plan** → set to **Read-only**
+5. Click **"Generate token"** and copy the value
+
+> **Note**: The **"Copilot"** permission scope is *not* the right one — you need **"Plan"**.
+>
+> This endpoint only works if your Copilot license is billed directly to your personal account (Copilot Pro/Pro+). If your license is managed by an organization, the data won't appear here.
+
+### 2. Create the Config File
+
+```bash
+mkdir -p ~/.config/waybar-ai-usage
+```
+
+Create `~/.config/waybar-ai-usage/copilot.conf`:
+
+```ini
+# GitHub Personal Access Token
+# Required permission: User permissions → Plan → Read-only
+# Create at: https://github.com/settings/personal-access-tokens
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Monthly included premium request quota
+# Copilot Pro = 300, Copilot Pro+ = 1500
+COPILOT_QUOTA=300
+```
+
+### 3. Test It
+
+```bash
+copilot-usage          # Shows used/quota in terminal
+copilot-usage --waybar # Shows Waybar JSON
+```
+
 ## Usage
 
 ### Command Line
@@ -84,9 +129,14 @@ claude-usage
 # ChatGPT usage
 codex-usage
 
+# GitHub Copilot usage
+copilot-usage
+copilot-usage --config ~/.config/waybar-ai-usage/copilot.conf  # custom config path
+
 # Waybar JSON output
 claude-usage --waybar
 codex-usage --waybar
+copilot-usage --waybar
 
 # Use a specific browser (repeatable, tried in order)
 claude-usage --browser chromium --browser brave
@@ -306,6 +356,7 @@ waybar-ai-usage/
 ├── common.py                     # Shared utilities (time formatting, window parsing)
 ├── claude.py                     # Claude Code usage monitor
 ├── codex.py                      # OpenAI Codex CLI usage monitor
+├── copilot.py                    # GitHub Copilot premium request monitor
 ├── pyproject.toml                # Project metadata and dependencies
 ├── waybar-config-example.jsonc   # Template used by setup
 ├── waybar-style-example.css      # Template used by setup

@@ -53,71 +53,59 @@ TEMPLATE_CONFIG = """// Waybar Configuration Example
     "tooltip": true,
     "on-click": "pkill -RTMIN+9 waybar",  // Click to refresh immediately
     "signal": 9  // Refresh when receiving signal 9
+  },
+
+  // GitHub Copilot Premium Request Usage Monitor
+  "custom/copilot-usage": {
+    // Requires ~/.config/waybar-ai-usage/copilot.conf with GITHUB_TOKEN=ghp_xxxxx
+    "exec": "~/.local/bin/copilot-usage --waybar",
+
+    "return-type": "json",
+    "interval": 3600,  // Refresh every hour (monthly quota)
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+10 waybar",  // Click to refresh immediately
+    "signal": 10  // Refresh when receiving signal 10
   }
 }
 """
 
-TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
-#custom-claude-usage {
-  padding: 0 8px;
-  margin: 0 4px;
-  border-radius: 4px;
-  background: transparent;
-  font-family: 'Adwaita Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.3s ease;
+TEMPLATE_STYLE = """/* AI Usage Monitor Styling */
+#custom-claude-usage,
+#custom-codex-usage,
+#custom-copilot-usage {
+  margin: 0 7.5px;
 }
 
-/* Hover effect: show clickable */
-#custom-claude-usage:hover {
-  background: rgba(222, 115, 86, 0.15);
+#custom-claude-usage:hover,
+#custom-codex-usage:hover,
+#custom-copilot-usage:hover {
+  background: transparent;
 }
 
 /* Color-coded by usage level */
-#custom-claude-usage.claude-low {
+#custom-claude-usage.claude-low,
+#custom-codex-usage.codex-low,
+#custom-copilot-usage.copilot-low {
   color: #a6e3a1;  /* Green: low usage (0-49%) */
 }
 
-#custom-claude-usage.claude-mid {
+#custom-claude-usage.claude-mid,
+#custom-codex-usage.codex-mid,
+#custom-copilot-usage.copilot-mid {
   color: #f9e2af;  /* Yellow: medium usage (50-79%) */
 }
 
-#custom-claude-usage.claude-high {
+#custom-claude-usage.claude-high,
+#custom-codex-usage.codex-high,
+#custom-copilot-usage.copilot-high {
   color: #f38ba8;  /* Red: high usage (80-99%) */
-}
-
-/* OpenAI Codex CLI Usage Monitor Styling */
-#custom-codex-usage {
-  padding: 0 8px;
-  margin: 0 4px;
-  border-radius: 4px;
-  background: transparent;
-  font-family: 'Adwaita Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-#custom-codex-usage:hover {
-  background: rgba(116, 170, 156, 0.15);
-}
-
-#custom-codex-usage.codex-low {
-  color: #a6e3a1;  /* Green: low usage */
-}
-
-#custom-codex-usage.codex-mid {
-  color: #f9e2af;  /* Yellow: medium usage */
-}
-
-#custom-codex-usage.codex-high {
-  color: #f38ba8;  /* Red: high usage */
 }
 
 /* Error state (network failures, auth errors, etc.) */
 #custom-claude-usage.critical,
-#custom-codex-usage.critical {
+#custom-codex-usage.critical,
+#custom-copilot-usage.critical {
   color: #ff5555;
   background: rgba(255, 85, 85, 0.1);
 }
@@ -204,7 +192,7 @@ def _remove_style_blocks(lines: list[str]) -> list[str]:
         start_idx, end_idx = region
         return lines[:start_idx] + lines[end_idx:]
 
-    targets = ("#custom-claude-usage", "#custom-codex-usage")
+    targets = ("#custom-claude-usage", "#custom-codex-usage", "#custom-copilot-usage")
     out: list[str] = []
     skipping = False
     depth = 0
@@ -253,9 +241,12 @@ def _read_template(path: Path, fallback: str) -> str:
 
 
 def _resolve_exec_base() -> str:
-    if Path("/usr/bin/claude-usage").exists() and Path("/usr/bin/codex-usage").exists():
+    if (Path("/usr/bin/claude-usage").exists() and Path("/usr/bin/codex-usage").exists()
+            and Path("/usr/bin/copilot-usage").exists()):
         return "/usr/bin"
-    if Path("~/.local/bin/claude-usage").expanduser().exists() and Path("~/.local/bin/codex-usage").expanduser().exists():
+    if (Path("~/.local/bin/claude-usage").expanduser().exists()
+            and Path("~/.local/bin/codex-usage").expanduser().exists()
+            and Path("~/.local/bin/copilot-usage").expanduser().exists()):
         return "~/.local/bin"
     return DEFAULT_EXEC
 
@@ -268,7 +259,7 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
         changed = False
         modules_left = config_data.get("modules-left")
         if isinstance(modules_left, list):
-            new_modules = [m for m in modules_left if m not in ("custom/claude-usage", "custom/codex-usage")]
+            new_modules = [m for m in modules_left if m not in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage")]
             if new_modules != modules_left:
                 config_data["modules-left"] = new_modules
                 changed = True
@@ -277,6 +268,9 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
             changed = True
         if "custom/codex-usage" in config_data:
             config_data.pop("custom/codex-usage", None)
+            changed = True
+        if "custom/copilot-usage" in config_data:
+            config_data.pop("custom/copilot-usage", None)
             changed = True
 
         if changed:
@@ -333,12 +327,12 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
         config_data["modules-left"] = modules_left
         changed_config = True
 
-    for name in ("custom/claude-usage", "custom/codex-usage"):
+    for name in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage"):
         if name not in modules_left:
             modules_left.append(name)
             changed_config = True
 
-    for key in ("custom/claude-usage", "custom/codex-usage"):
+    for key in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage"):
         if key not in config_data and key in example_config_data:
             config_data[key] = example_config_data[key]
             changed_config = True

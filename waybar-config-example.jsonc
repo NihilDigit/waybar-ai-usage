@@ -41,5 +41,18 @@
     "tooltip": true,
     "on-click": "pkill -RTMIN+9 waybar",  // Click to refresh immediately
     "signal": 9  // Refresh when receiving signal 9
+  },
+
+  // GitHub Copilot Premium Request Usage Monitor
+  "custom/copilot-usage": {
+    // Requires ~/.config/waybar-ai-usage/copilot.conf with GITHUB_TOKEN=ghp_xxxxx
+    "exec": "~/.local/bin/copilot-usage --waybar",
+
+    "return-type": "json",
+    "interval": 3600,  // Refresh every hour (monthly quota)
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+10 waybar",  // Click to refresh immediately
+    "signal": 10  // Refresh when receiving signal 10
   }
 }
