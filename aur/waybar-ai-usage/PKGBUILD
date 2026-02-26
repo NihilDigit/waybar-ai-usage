@@ -18,7 +18,7 @@ depends=(
 )
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
 source=("waybar-ai-usage-${pkgver}.tar.gz::https://api.github.com/repos/NihilDigit/waybar-ai-usage/tarball/refs/tags/v${pkgver}")
-sha256sums=('fc8afda32adc57c0b4d3efa8ac67f3ec371912ef59f3872eb777e8fea00c8874')
+sha256sums=('8597f833db47d546b935bb228f53179871071e90b515c6b420cb0887c35b7903')
 
 _srcdir() {
   find "${srcdir}" -maxdepth 1 -type d -name "NihilDigit-waybar-ai-usage-*" | head -n 1
