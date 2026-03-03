@@ -1,6 +1,6 @@
 # Waybar AI Usage
 
-Monitor **Claude Code**, **OpenAI Codex CLI**, and **GitHub Copilot** usage directly in your Waybar status bar.
+Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, and **OpenCode Zen** usage directly in your Waybar status bar.
 
 ![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
 
@@ -17,6 +17,10 @@ This tool displays your AI coding assistant usage limits in real-time by reading
 - **GitHub Copilot**: Monthly premium request quota (Pro/Pro+)
   - Requests consumed vs. included quota (default: 300)
   - Countdown to monthly reset (1st of month, 00:00 UTC)
+- **OpenCode Zen**: Pay-as-you-go balance for curated coding models
+  - Current account balance in USD
+  - Color-coded warnings when balance is low
+  - No API key needed - uses browser cookies
 
 ## Features
 
@@ -99,6 +103,23 @@ copilot-usage          # Shows used/quota in terminal
 copilot-usage --waybar # Shows Waybar JSON
 ```
 
+## OpenCode Zen Setup
+
+Unlike Claude and Codex which have usage windows, **Zen** shows your current pay-as-you-go balance.
+
+### 1. Login to OpenCode
+
+Make sure you're logged into [opencode.ai](https://opencode.ai) in your Chrome/Chromium browser.
+
+### 2. Test It
+
+```bash
+zen-balance          # Shows balance in terminal
+zen-balance --waybar # Shows Waybar JSON
+```
+
+No configuration needed - it uses browser cookies just like Claude and Codex!
+
 ## Usage
 
 ### Command Line
@@ -133,10 +154,14 @@ codex-usage
 copilot-usage
 copilot-usage --config ~/.config/waybar-ai-usage/copilot.conf  # custom config path
 
+# OpenCode Zen balance
+zen-balance
+
 # Waybar JSON output
 claude-usage --waybar
 codex-usage --waybar
 copilot-usage --waybar
+zen-balance --waybar
 
 # Use a specific browser (repeatable, tried in order)
 claude-usage --browser chromium --browser brave
@@ -313,6 +338,7 @@ The first example will display:
   to:
   - [Claude.ai](https://claude.ai) for Claude Code monitoring
   - [ChatGPT](https://chatgpt.com) for Codex CLI monitoring
+  - [OpenCode](https://opencode.ai) for Zen balance monitoring
 - **Python 3.11+**
 - **uv** package manager
   ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
@@ -358,6 +384,7 @@ waybar-ai-usage/
 ├── claude.py                     # Claude Code usage monitor
 ├── codex.py                      # OpenAI Codex CLI usage monitor
 ├── copilot.py                    # GitHub Copilot premium request monitor
+├── zen.py                        # OpenCode Zen balance monitor
 ├── pyproject.toml                # Project metadata and dependencies
 ├── waybar-config-example.jsonc   # Template used by setup
 ├── waybar-style-example.css      # Template used by setup
@@ -388,6 +415,7 @@ Contributions are welcome! Areas for improvement:
 - [x] Better UX for setup/cleanup (preview changes, restore helper)
 - [x] Caching mechanism to reduce API calls (v0.4.0+)
 - [x] GitHub Copilot premium request monitoring (v0.5.0+)
+- [x] OpenCode Zen balance monitoring
 - [ ] Better error messages
 - [ ] More examples and screenshots
 

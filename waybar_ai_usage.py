@@ -66,6 +66,19 @@ TEMPLATE_CONFIG = """// Waybar Configuration Example
     "tooltip": true,
     "on-click": "pkill -RTMIN+10 waybar",  // Click to refresh immediately
     "signal": 10  // Refresh when receiving signal 10
+  },
+
+  // OpenCode Zen Balance Monitor
+  "custom/zen-balance": {
+    // Uses browser cookies - no API key needed
+    "exec": "~/.local/bin/zen-balance --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+11 waybar",  // Click to refresh immediately
+    "signal": 11  // Refresh when receiving signal 11
   }
 }
 """
@@ -156,10 +169,40 @@ TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
   color: #f38ba8;  /* Red: high usage (80-99%) */
 }
 
+/* OpenCode Zen Balance Monitor Styling */
+#custom-zen-balance {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-zen-balance:hover {
+  background: rgba(116, 170, 156, 0.15);
+}
+
+/* Color-coded by balance level */
+#custom-zen-balance.zen-high {
+  color: #a6e3a1;  /* Green: good balance (> $10) */
+}
+
+#custom-zen-balance.zen-medium {
+  color: #f9e2af;  /* Yellow: getting low ($5-10) */
+}
+
+#custom-zen-balance.zen-low {
+  color: #f38ba8;  /* Red: critically low (< $5) */
+}
+
 /* Error state (network failures, auth errors, etc.) */
 #custom-claude-usage.critical,
 #custom-codex-usage.critical,
-#custom-copilot-usage.critical {
+#custom-copilot-usage.critical,
+#custom-zen-balance.critical {
   color: #ff5555;
   background: rgba(255, 85, 85, 0.1);
 }
@@ -178,7 +221,9 @@ def _confirm_changes(paths: Iterable[Path]) -> bool:
 
 
 def _print_done() -> None:
-    print("Next step: restart Waybar to apply changes (e.g. `pkill waybar && waybar &`).")
+    print(
+        "Next step: restart Waybar to apply changes (e.g. `pkill waybar && waybar &`)."
+    )
 
 
 def _list_backups(path: Path) -> list[Path]:
@@ -191,7 +236,10 @@ def _pick_latest_backup(path: Path) -> Path | None:
 
 
 def _find_style_region(lines: list[str]) -> tuple[int, int] | None:
-    start_markers = ("/* Claude Code Usage Monitor Styling */", "/* AI Usage Monitor Styling */")
+    start_markers = (
+        "/* Claude Code Usage Monitor Styling */",
+        "/* AI Usage Monitor Styling */",
+    )
     end_marker = "/* Error state (network failures, auth errors, etc.) */"
     start_idx = None
     end_idx = None
@@ -246,7 +294,12 @@ def _remove_style_blocks(lines: list[str]) -> list[str]:
         start_idx, end_idx = region
         return lines[:start_idx] + lines[end_idx:]
 
-    targets = ("#custom-claude-usage", "#custom-codex-usage", "#custom-copilot-usage")
+    targets = (
+        "#custom-claude-usage",
+        "#custom-codex-usage",
+        "#custom-copilot-usage",
+        "#custom-zen-balance",
+    )
     out: list[str] = []
     skipping = False
     depth = 0
@@ -295,7 +348,7 @@ def _read_template(path: Path, fallback: str) -> str:
 
 
 def _resolve_exec_base() -> str:
-    binaries = ("claude-usage", "codex-usage", "copilot-usage")
+    binaries = ("claude-usage", "codex-usage", "copilot-usage", "zen-balance")
     if any(Path(f"/usr/bin/{b}").exists() for b in binaries):
         return "/usr/bin"
     if any(Path(f"~/.local/bin/{b}").expanduser().exists() for b in binaries):
@@ -311,7 +364,17 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
         changed = False
         modules_left = config_data.get("modules-left")
         if isinstance(modules_left, list):
-            new_modules = [m for m in modules_left if m not in ("custom/claude-usage", "custom/codex-usage", "custom/copilot-usage")]
+            new_modules = [
+                m
+                for m in modules_left
+                if m
+                not in (
+                    "custom/claude-usage",
+                    "custom/codex-usage",
+                    "custom/copilot-usage",
+                    "custom/zen-balance",
+                )
+            ]
             if new_modules != modules_left:
                 config_data["modules-left"] = new_modules
                 changed = True
@@ -320,6 +383,9 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
             changed = True
         if "custom/codex-usage" in config_data:
             config_data.pop("custom/codex-usage", None)
+            changed = True
+        if "custom/zen-balance" in config_data:
+            config_data.pop("custom/zen-balance", None)
             changed = True
         if "custom/copilot-usage" in config_data:
             config_data.pop("custom/copilot-usage", None)
@@ -355,7 +421,9 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
         _print_done()
 
 
-def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None, dry_run: bool) -> None:
+def _apply_setup(
+    config_path: Path, style_path: Path, browsers: list[str] | None, dry_run: bool
+) -> None:
     example_config = Path(__file__).with_name("waybar-config-example.jsonc")
     example_style = Path(__file__).with_name("waybar-style-example.css")
     style_lines = style_path.read_text().splitlines() if style_path.exists() else []
@@ -363,7 +431,9 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
     example_config_text = _read_template(example_config, TEMPLATE_CONFIG)
     example_style_text = _read_template(example_style, TEMPLATE_STYLE)
     exec_base = _resolve_exec_base()
-    example_config_data = json5.loads(example_config_text.replace("~/.local/bin", exec_base))
+    example_config_data = json5.loads(
+        example_config_text.replace("~/.local/bin", exec_base)
+    )
     example_style_lines = example_style_text.splitlines()
     css_region = _extract_style_region(example_style_lines)
 
@@ -379,7 +449,7 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
         config_data["modules-left"] = modules_left
         changed_config = True
 
-    for name in ("custom/claude-usage", "custom/codex-usage"):
+    for name in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
         if name not in modules_left:
             modules_left.append(name)
             changed_config = True
@@ -390,22 +460,32 @@ def _apply_setup(config_path: Path, style_path: Path, browsers: list[str] | None
         modules_left.append("custom/copilot-usage")
         changed_config = True
 
-    for key in ("custom/claude-usage", "custom/codex-usage"):
+    for key in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
         if key not in config_data and key in example_config_data:
             config_data[key] = example_config_data[key]
             changed_config = True
 
-    if copilot_conf.exists() and "custom/copilot-usage" not in config_data and "custom/copilot-usage" in example_config_data:
-        config_data["custom/copilot-usage"] = example_config_data["custom/copilot-usage"]
+    if (
+        copilot_conf.exists()
+        and "custom/copilot-usage" not in config_data
+        and "custom/copilot-usage" in example_config_data
+    ):
+        config_data["custom/copilot-usage"] = example_config_data[
+            "custom/copilot-usage"
+        ]
         changed_config = True
 
     if browsers:
         flags = " ".join(f"--browser {b}" for b in browsers)
-        for key in ("custom/claude-usage", "custom/codex-usage"):
+        for key in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
             entry = config_data.get(key)
             if isinstance(entry, dict):
                 exec_cmd = entry.get("exec")
-                if isinstance(exec_cmd, str) and "--waybar" in exec_cmd and "--browser" not in exec_cmd:
+                if (
+                    isinstance(exec_cmd, str)
+                    and "--waybar" in exec_cmd
+                    and "--browser" not in exec_cmd
+                ):
                     entry["exec"] = exec_cmd.replace("--waybar", f"--waybar {flags}")
                     changed_config = True
 
@@ -597,14 +677,23 @@ def main() -> None:
 
     if args.command == "setup":
         if not args.yes and not args.dry_run:
-            if not _confirm_changes([args.config.expanduser(), args.style.expanduser()]):
+            if not _confirm_changes(
+                [args.config.expanduser(), args.style.expanduser()]
+            ):
                 print("Aborted.")
                 return
-        _apply_setup(args.config.expanduser(), args.style.expanduser(), args.browser, args.dry_run)
+        _apply_setup(
+            args.config.expanduser(),
+            args.style.expanduser(),
+            args.browser,
+            args.dry_run,
+        )
         return
     if args.command == "cleanup":
         if not args.yes and not args.dry_run:
-            if not _confirm_changes([args.config.expanduser(), args.style.expanduser()]):
+            if not _confirm_changes(
+                [args.config.expanduser(), args.style.expanduser()]
+            ):
                 print("Aborted.")
                 return
         _remove_config(args.config.expanduser(), args.style.expanduser(), args.dry_run)
