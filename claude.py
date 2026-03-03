@@ -8,7 +8,7 @@ from pathlib import Path
 
 from curl_cffi import requests
 
-from common import format_eta, load_cookies, parse_window_percent, format_output, get_cached_or_fetch
+from common import format_eta, load_cookies, parse_window_percent, format_output, get_cached_or_fetch, open_login_url, LOGIN_URLS
 
 
 # ==================== Configuration ====================
@@ -275,10 +275,17 @@ def main() -> None:
     except Exception as e:
         if args.waybar:
             err_msg = str(e)
-            short_err = "Auth Err" if "403" in err_msg else "Net Err"
+            err_lower = err_msg.lower()
+            is_http_auth = "403" in err_msg or "401" in err_msg
+            is_cookie = "cookie" in err_lower
+            short_err = "Auth Err" if (is_http_auth or is_cookie) else "Net Err"
+            tooltip = f"Error fetching Claude usage:\n{err_msg}"
+            if is_http_auth:
+                if open_login_url(LOGIN_URLS["claude.ai"]):
+                    tooltip += "\n\nOpened login page — log in then click to refresh"
             print(json.dumps({
                 "text": f"<span foreground='#ff5555'>󰜡 {short_err}</span>",
-                "tooltip": f"Error fetching Claude usage:\n{err_msg}",
+                "tooltip": tooltip,
                 "class": "critical"
             }))
             sys.exit(0)

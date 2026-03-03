@@ -13,8 +13,38 @@ import browser_cookie3
 
 DEFAULT_BROWSERS = ("chrome", "chromium", "brave", "edge", "firefox", "helium")
 
+LOGIN_URLS = {
+    "claude.ai": "https://claude.ai",
+    "chatgpt.com": "https://chatgpt.com",
+    "opencode.ai": "https://opencode.ai/zen",
+}
+
+
 # Cache configuration
 CACHE_DIR = Path.home() / ".cache" / "waybar-ai-usage"
+LOGIN_OPEN_COOLDOWN = 600  # Don't re-open the same login page within 10 minutes
+
+
+def open_login_url(url: str) -> bool:
+    """Try to open URL in default browser with cooldown to avoid repeated opens."""
+    import hashlib
+    import subprocess
+
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    marker = CACHE_DIR / f"login_{hashlib.md5(url.encode()).hexdigest()}"
+    if marker.exists() and (time.time() - marker.stat().st_mtime) < LOGIN_OPEN_COOLDOWN:
+        return False
+
+    try:
+        subprocess.Popen(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        marker.touch()
+        return True
+    except FileNotFoundError:
+        return False
 CACHE_TTL = 60  # Cache valid for 60 seconds
 
 

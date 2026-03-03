@@ -228,15 +228,17 @@ def main() -> None:
                 "text": f"<span foreground='#ff5555'>{COPILOT_ICON} No Token</span>",
                 "tooltip": (
                     f"No GITHUB_TOKEN found in {args.config}\n"
-                    f"Create the file with:\n"
-                    f"GITHUB_TOKEN=ghp_xxxxx\n"
-                    f"COPILOT_QUOTA=300"
+                    f"Create a fine-grained PAT with 'Plan (read)' permission:\n"
+                    f"https://github.com/settings/personal-access-tokens/new\n"
+                    f"Then save as GITHUB_TOKEN=github_pat_xxx in {args.config}"
                 ),
                 "class": "critical",
             }))
             sys.exit(0)
         else:
             print(f"[!] Error: No GITHUB_TOKEN in {args.config}", file=sys.stderr)
+            print(f"    Create a fine-grained PAT with 'Plan (read)' permission:", file=sys.stderr)
+            print(f"    https://github.com/settings/personal-access-tokens/new", file=sys.stderr)
             sys.exit(1)
 
     try:
@@ -245,10 +247,18 @@ def main() -> None:
     except Exception as e:
         if args.waybar:
             err_msg = str(e)
-            short_err = "Auth Err" if "401" in err_msg or "403" in err_msg else "Net Err"
+            is_auth = "401" in err_msg or "403" in err_msg or "404" in err_msg
+            short_err = "Auth Err" if is_auth else "Net Err"
+            tooltip = f"Error fetching Copilot usage:\n{err_msg}"
+            if "404" in err_msg:
+                tooltip += (
+                    "\n\nThis endpoint requires a fine-grained PAT with"
+                    "\n'Plan (read)' permission."
+                    "\nhttps://github.com/settings/personal-access-tokens/new"
+                )
             print(json.dumps({
                 "text": f"<span foreground='#ff5555'>{COPILOT_ICON} {short_err}</span>",
-                "tooltip": f"Error fetching Copilot usage:\n{err_msg}",
+                "tooltip": tooltip,
                 "class": "critical",
             }))
             sys.exit(0)

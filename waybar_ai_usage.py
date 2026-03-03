@@ -266,11 +266,19 @@ def _select_modules(modules_arg: str | None) -> list[str]:
             name_to_key[short] = mod["key"]
             name_to_key[mod["key"]] = mod["key"]
         selected = []
+        unknown = []
         for n in names:
             if n in name_to_key:
                 selected.append(name_to_key[n])
             else:
-                print(f"Unknown module: {n}")
+                unknown.append(n)
+        if unknown:
+            valid = ", ".join(sorted({k for k in name_to_key if "/" not in k}))
+            for u in unknown:
+                print(f"Unknown module: {u}")
+            print(f"Valid modules: {valid}")
+        if not selected:
+            raise SystemExit(1)
         return selected
 
     defaults = _resolve_defaults()

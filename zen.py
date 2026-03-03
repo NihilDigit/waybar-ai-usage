@@ -14,7 +14,7 @@ import sys
 
 from curl_cffi import requests
 
-from common import get_cached_or_fetch, load_cookies
+from common import get_cached_or_fetch, load_cookies, open_login_url, LOGIN_URLS
 
 
 # ==================== Configuration ====================
@@ -191,18 +191,27 @@ def main() -> None:
     except Exception as e:
         if args.waybar:
             err_msg = str(e)
+            err_lower = err_msg.lower()
+            is_http_auth = "403" in err_msg or "401" in err_msg
+            is_cookie = "cookie" in err_lower
             short_err = (
                 "Auth Err"
-                if "403" in err_msg
+                if (is_http_auth or is_cookie)
                 else "Net Err"
-                if "failed" in err_msg
+                if "failed" in err_lower or "timed out" in err_lower
                 else "Err"
             )
+            tooltip = f"Error fetching Zen balance:\n{err_msg}"
+            if is_http_auth:
+                if open_login_url(LOGIN_URLS["opencode.ai"]):
+                    tooltip += "\n\nOpened login page — log in then click to refresh"
+            else:
+                tooltip += "\n\nMake sure you're logged into opencode.ai/zen"
             print(
                 json.dumps(
                     {
                         "text": f"<span foreground='#ff5555'>ZEN {short_err}</span>",
-                        "tooltip": f"Error fetching Zen balance:\n{err_msg}\n\nMake sure you're logged into opencode.ai/zen",
+                        "tooltip": tooltip,
                         "class": "critical",
                     }
                 )
