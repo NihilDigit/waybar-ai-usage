@@ -10,6 +10,13 @@ DEFAULT_CONFIG = Path("~/.config/waybar/config.jsonc").expanduser()
 DEFAULT_STYLE = Path("~/.config/waybar/style.css").expanduser()
 DEFAULT_EXEC = "~/.local/bin"
 
+MODULES = [
+    {"key": "custom/claude-usage", "name": "Claude Code", "desc": "usage limits", "default": True},
+    {"key": "custom/codex-usage", "name": "Codex CLI", "desc": "usage limits", "default": True},
+    {"key": "custom/copilot-usage", "name": "GitHub Copilot", "desc": "premium requests", "default": "copilot.conf"},
+    {"key": "custom/zen-balance", "name": "OpenCode Zen", "desc": "balance monitor", "default": False},
+]
+
 TEMPLATE_CONFIG = """// Waybar Configuration Example
 // Add this configuration to the modules section of ~/.config/waybar/config.jsonc
 //
@@ -207,6 +214,126 @@ TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
   background: rgba(255, 85, 85, 0.1);
 }
 """
+
+
+def _resolve_defaults() -> list[bool]:
+    """Determine default-on state for each module."""
+    defaults = []
+    for mod in MODULES:
+        d = mod["default"]
+        if isinstance(d, str):
+            defaults.append(
+                Path(f"~/.config/waybar-ai-usage/{d}").expanduser().exists()
+            )
+        else:
+            defaults.append(bool(d))
+    return defaults
+
+
+def _read_key() -> str:
+    """Read a single keypress, handling escape sequences."""
+    import sys
+
+    ch = sys.stdin.read(1)
+    if ch == "\x1b":
+        seq = sys.stdin.read(1)
+        if seq == "[":
+            code = sys.stdin.read(1)
+            if code == "A":
+                return "up"
+            if code == "B":
+                return "down"
+        return "esc"
+    if ch == " ":
+        return "space"
+    if ch in ("\r", "\n"):
+        return "enter"
+    if ch == "\x03":
+        return "quit"
+    return ch
+
+
+def _select_modules(modules_arg: str | None) -> list[str]:
+    """Interactive module selector; returns list of chosen module keys."""
+    import sys
+
+    if modules_arg is not None:
+        names = [n.strip().lower() for n in modules_arg.split(",") if n.strip()]
+        name_to_key = {}
+        for mod in MODULES:
+            # accept short names: "claude", "codex", "copilot", "zen"
+            short = mod["key"].split("/")[1].split("-")[0]
+            name_to_key[short] = mod["key"]
+            name_to_key[mod["key"]] = mod["key"]
+        selected = []
+        for n in names:
+            if n in name_to_key:
+                selected.append(name_to_key[n])
+            else:
+                print(f"Unknown module: {n}")
+        return selected
+
+    defaults = _resolve_defaults()
+
+    if not sys.stdin.isatty():
+        return [m["key"] for m, on in zip(MODULES, defaults) if on]
+
+    import termios
+    import tty
+
+    checked = list(defaults)
+    cursor = 0
+    n = len(MODULES)
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    # 6 lines total (4 modules + blank + hint), 5 \n between them
+    row_count = n + 1  # lines to move up from last line to first
+
+    def draw() -> str:
+        lines = []
+        for i, (mod, on) in enumerate(zip(MODULES, checked)):
+            mark = "*" if on else " "
+            ptr = ">" if i == cursor else " "
+            lines.append(
+                f"\033[2K  {ptr} [{mark}] {mod['name']:20s} \u2014 {mod['desc']}"
+            )
+        lines.append("\033[2K")
+        lines.append(
+            "\033[2K  \u2191\u2193 navigate  space toggle  enter confirm"
+        )
+        return "\r\n".join(lines)
+
+    try:
+        sys.stdout.write("\r\nSelect modules:\r\n\r\n")
+        sys.stdout.write(draw())
+        sys.stdout.write("\033[?25l")  # hide cursor
+        sys.stdout.flush()
+        tty.setcbreak(fd)
+
+        while True:
+            key = _read_key()
+            if key == "up":
+                cursor = (cursor - 1) % n
+            elif key == "down":
+                cursor = (cursor + 1) % n
+            elif key == "space":
+                checked[cursor] = not checked[cursor]
+            elif key == "enter":
+                break
+            elif key == "quit":
+                checked = list(defaults)
+                break
+            else:
+                continue
+            sys.stdout.write(f"\033[{row_count}A\r")
+            sys.stdout.write(draw())
+            sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        sys.stdout.write("\033[?25h\r\n")
+        sys.stdout.flush()
+
+    return [mod["key"] for mod, on in zip(MODULES, checked) if on]
 
 
 def _confirm_changes(paths: Iterable[Path]) -> bool:
@@ -422,7 +549,11 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
 
 
 def _apply_setup(
-    config_path: Path, style_path: Path, browsers: list[str] | None, dry_run: bool
+    config_path: Path,
+    style_path: Path,
+    browsers: list[str] | None,
+    dry_run: bool,
+    enabled_modules: list[str] | None = None,
 ) -> None:
     example_config = Path(__file__).with_name("waybar-config-example.jsonc")
     example_style = Path(__file__).with_name("waybar-style-example.css")
@@ -442,6 +573,10 @@ def _apply_setup(
     else:
         config_data = {}
 
+    all_keys = [m["key"] for m in MODULES]
+    if enabled_modules is None:
+        enabled_modules = all_keys
+
     changed_config = False
     modules_left = config_data.get("modules-left")
     if not isinstance(modules_left, list):
@@ -449,35 +584,19 @@ def _apply_setup(
         config_data["modules-left"] = modules_left
         changed_config = True
 
-    for name in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
-        if name not in modules_left:
-            modules_left.append(name)
+    for key in enabled_modules:
+        if key not in modules_left:
+            modules_left.append(key)
             changed_config = True
 
-    # Only add copilot module if the user has configured a token
-    copilot_conf = Path("~/.config/waybar-ai-usage/copilot.conf").expanduser()
-    if copilot_conf.exists() and "custom/copilot-usage" not in modules_left:
-        modules_left.append("custom/copilot-usage")
-        changed_config = True
-
-    for key in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
+    for key in enabled_modules:
         if key not in config_data and key in example_config_data:
             config_data[key] = example_config_data[key]
             changed_config = True
 
-    if (
-        copilot_conf.exists()
-        and "custom/copilot-usage" not in config_data
-        and "custom/copilot-usage" in example_config_data
-    ):
-        config_data["custom/copilot-usage"] = example_config_data[
-            "custom/copilot-usage"
-        ]
-        changed_config = True
-
     if browsers:
         flags = " ".join(f"--browser {b}" for b in browsers)
-        for key in ("custom/claude-usage", "custom/codex-usage", "custom/zen-balance"):
+        for key in enabled_modules:
             entry = config_data.get(key)
             if isinstance(entry, dict):
                 exec_cmd = entry.get("exec")
@@ -608,6 +727,12 @@ def main() -> None:
         action="store_true",
         help="Skip confirmation prompt",
     )
+    setup.add_argument(
+        "--modules",
+        type=str,
+        default=None,
+        help="Comma-separated module names to enable (e.g. claude,codex,zen). Skips interactive selection.",
+    )
 
     cleanup = subparsers.add_parser(
         "cleanup",
@@ -682,11 +807,23 @@ def main() -> None:
             ):
                 print("Aborted.")
                 return
+        if args.modules is not None or (args.yes and args.modules is None):
+            # --modules given: parse it; --yes without --modules: use defaults
+            if args.modules is not None:
+                enabled = _select_modules(args.modules)
+            else:
+                defaults = _resolve_defaults()
+                enabled = [
+                    m["key"] for m, on in zip(MODULES, defaults) if on
+                ]
+        else:
+            enabled = _select_modules(None)
         _apply_setup(
             args.config.expanduser(),
             args.style.expanduser(),
             args.browser,
             args.dry_run,
+            enabled_modules=enabled,
         )
         return
     if args.command == "cleanup":

@@ -84,10 +84,40 @@
   color: #f38ba8;  /* Red: high usage (80-99%) */
 }
 
+/* OpenCode Zen Balance Monitor Styling */
+#custom-zen-balance {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-zen-balance:hover {
+  background: rgba(116, 170, 156, 0.15);
+}
+
+/* Color-coded by balance level */
+#custom-zen-balance.zen-high {
+  color: #a6e3a1;  /* Green: good balance (> $10) */
+}
+
+#custom-zen-balance.zen-medium {
+  color: #f9e2af;  /* Yellow: getting low ($5-10) */
+}
+
+#custom-zen-balance.zen-low {
+  color: #f38ba8;  /* Red: critically low (< $5) */
+}
+
 /* Error state (network failures, auth errors, etc.) */
 #custom-claude-usage.critical,
 #custom-codex-usage.critical,
-#custom-copilot-usage.critical {
+#custom-copilot-usage.critical,
+#custom-zen-balance.critical {
   color: #ff5555;
   background: rgba(255, 85, 85, 0.1);
 }

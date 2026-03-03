@@ -37,8 +37,16 @@ CACHE_TTL = 120  # Cache for 120 seconds
 def _parse_balance_from_html(html_content: str) -> float | None:
     """Parse balance from HTML content using various patterns"""
 
-    # Pattern 1: Look for the specific data-slot="balance" structure with HTML comments
-    # <span data-slot="balance">...Current balance...<b>$<!--$-->19.43<!--/--></b></span>
+    # Pattern 1: JS state object — balance:<number> (integer or decimal)
+    # e.g. balance:0  or  balance:19.43
+    balance_match = re.search(
+        r"balance:([0-9]+(?:\.[0-9]+)?)",
+        html_content,
+    )
+    if balance_match:
+        return float(balance_match.group(1))
+
+    # Pattern 2: data-slot="balance" structure with HTML comments (legacy)
     balance_match = re.search(
         r'data-slot="balance"[^>]*>.*?Current balance.*?<b>\$\s*<!--\$-->([0-9]+\.[0-9]{2})<!--/-->',
         html_content,
@@ -47,16 +55,7 @@ def _parse_balance_from_html(html_content: str) -> float | None:
     if balance_match:
         return float(balance_match.group(1))
 
-    # Pattern 2: Look for balance with HTML comments (simpler pattern)
-    balance_match = re.search(
-        r"Current balance.*?\$\s*<!--\$-->([0-9]+\.[0-9]{2})<!--/-->",
-        html_content,
-        re.DOTALL,
-    )
-    if balance_match:
-        return float(balance_match.group(1))
-
-    # Pattern 3: Simple "Current balance $XX.XX" pattern
+    # Pattern 3: Simple "Current balance $XX.XX" pattern (legacy)
     balance_match = re.search(
         r"Current balance\s*\$\s*([0-9]+\.[0-9]{2})",
         html_content,

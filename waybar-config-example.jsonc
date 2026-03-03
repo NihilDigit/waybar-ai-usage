@@ -54,5 +54,18 @@
     "tooltip": true,
     "on-click": "pkill -RTMIN+10 waybar",  // Click to refresh immediately
     "signal": 10  // Refresh when receiving signal 10
+  },
+
+  // OpenCode Zen Balance Monitor
+  "custom/zen-balance": {
+    // Uses browser cookies - no API key needed
+    "exec": "~/.local/bin/zen-balance --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+11 waybar",  // Click to refresh immediately
+    "signal": 11  // Refresh when receiving signal 11
   }
 }
