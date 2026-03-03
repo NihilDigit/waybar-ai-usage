@@ -592,9 +592,16 @@ def _apply_setup(
         config_data["modules-left"] = modules_left
         changed_config = True
 
+    disabled_modules = [k for k in all_keys if k not in enabled_modules]
+
     for key in enabled_modules:
         if key not in modules_left:
             modules_left.append(key)
+            changed_config = True
+
+    for key in disabled_modules:
+        if key in modules_left:
+            modules_left.remove(key)
             changed_config = True
 
     for key in enabled_modules:
