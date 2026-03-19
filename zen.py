@@ -20,10 +20,10 @@ from common import get_cached_or_fetch, load_cookies, open_login_url, LOGIN_URLS
 # ==================== Configuration ====================
 
 ZEN_DOMAIN = "opencode.ai"
-ZEN_URL = "https://opencode.ai/zen"
+ZEN_URL = "https://opencode.ai/auth"
 
 BASE_HEADERS = {
-    "Referer": "https://opencode.ai/zen",
+    "Referer": "https://opencode.ai/auth",
     "Origin": "https://opencode.ai",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
