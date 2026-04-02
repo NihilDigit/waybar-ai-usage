@@ -1,5 +1,7 @@
 # Waybar AI Usage
 
+[![Mentioned in Awesome Codex CLI](https://awesome.re/mentioned-badge.svg)](https://github.com/RoggeOhta/awesome-codex-cli)
+
 Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, and **OpenCode Zen** usage directly in your Waybar status bar.
 
 ![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
