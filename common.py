@@ -1,7 +1,10 @@
 """Common utilities shared between claude.py and codex.py"""
 from __future__ import annotations
 
+import configparser
+import glob
 import json
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -142,6 +145,27 @@ def helium(cookie_file=None, domain_name="", key_file=None):
     return browser_cookie3.chromium(cookie_file=cookie_file, domain_name=domain_name, key_file=key_file)
 
 
+def _firefox_xdg_fallback(domain: str):
+    """Try ~/.config/mozilla/firefox when browser_cookie3 can't find the profile.
+
+    Newer distros (Arch, Fedora, etc.) put Firefox data under XDG_CONFIG_HOME
+    instead of ~/.mozilla. browser_cookie3 doesn't check this path, so we
+    locate cookies.sqlite ourselves and pass it via cookie_file=.
+    """
+    xdg_dir = os.path.expanduser("~/.config/mozilla/firefox")
+    if not os.path.isdir(xdg_dir):
+        return None
+    # Reuse browser_cookie3's profile.ini parsing to find the default profile
+    try:
+        profile_path = browser_cookie3.Firefox.get_default_profile(xdg_dir)
+        cookie_files = glob.glob(os.path.join(profile_path, "cookies.sqlite"))
+        if cookie_files:
+            return browser_cookie3.firefox(cookie_file=cookie_files[0], domain_name=domain)
+    except Exception:
+        return None
+    return None
+
+
 def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[dict, str]:
     """Load cookies for a domain from the first available browser in order."""
     browsers = list(browsers or DEFAULT_BROWSERS)
@@ -161,6 +185,15 @@ def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[di
             cj = loader(domain_name=domain)
             cookies = {c.name: c.value for c in cj}
         except Exception as exc:
+            # Workaround: browser_cookie3 doesn't check ~/.config/mozilla/firefox
+            # which is the default on newer distros following XDG Base Directory spec.
+            # See https://github.com/NihilDigit/waybar-ai-usage/issues/9
+            if name == "firefox":
+                cj = _firefox_xdg_fallback(domain)
+                if cj is not None:
+                    cookies = {c.name: c.value for c in cj}
+                    if cookies:
+                        return cookies, name
             errors.append(f"{name}: {exc}")
             continue
 
