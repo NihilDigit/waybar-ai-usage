@@ -2,7 +2,7 @@
 
 [![Mentioned in Awesome Codex CLI](https://awesome.re/mentioned-badge.svg)](https://github.com/RoggeOhta/awesome-codex-cli)
 
-Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, and **OpenCode Zen** usage directly in your Waybar status bar.
+Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, **OpenCode Zen**, and **Z.ai** usage directly in your Waybar status bar.
 
 ![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
 
@@ -23,6 +23,10 @@ This tool displays your AI coding assistant usage limits in real-time by reading
   - Current account balance in USD
   - Color-coded warnings when balance is low
   - No API key needed - uses browser cookies
+- **Z.ai**: Usage quota monitoring (GLM models)
+  - 5-hour token usage window (percentage + reset timer)
+  - Monthly tool quota (web search, web reader, ZRead)
+  - Uses API token from config file
 
 ## Features
 
@@ -122,6 +126,37 @@ zen-balance --waybar # Shows Waybar JSON
 
 No configuration needed - it uses browser cookies just like Claude and Codex!
 
+## Z.ai Setup
+
+Unlike Claude and Codex which use browser cookies, **Z.ai** uses an API token for authentication.
+
+### 1. Get Your API Token
+
+1. Go to [z.ai](https://z.ai) and log in
+2. Open DevTools (**F12**) > **Network** tab
+3. Find any request to `api.z.ai` and copy the `Authorization` header value (e.g. `Bearer eyJ...`)
+4. You only need the token part after `Bearer `
+
+### 2. Create the Config File
+
+```bash
+mkdir -p ~/.config/waybar-ai-usage
+```
+
+Create `~/.config/waybar-ai-usage/zai.conf`:
+
+```ini
+# Z.ai API token from browser DevTools
+ZAI_TOKEN=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 3. Test It
+
+```bash
+zai-usage          # Shows usage in terminal
+zai-usage --waybar # Shows Waybar JSON
+```
+
 ## Usage
 
 ### Command Line
@@ -159,11 +194,16 @@ copilot-usage --config ~/.config/waybar-ai-usage/copilot.conf  # custom config p
 # OpenCode Zen balance
 zen-balance
 
+# Z.ai usage quota
+zai-usage
+zai-usage --config ~/.config/waybar-ai-usage/zai.conf  # custom config path
+
 # Waybar JSON output
 claude-usage --waybar
 codex-usage --waybar
 copilot-usage --waybar
 zen-balance --waybar
+zai-usage --waybar
 
 # Use a specific browser (repeatable, tried in order)
 claude-usage --browser chromium --browser brave
@@ -341,6 +381,7 @@ The first example will display:
   - [Claude.ai](https://claude.ai) for Claude Code monitoring
   - [ChatGPT](https://chatgpt.com) for Codex CLI monitoring
   - [OpenCode](https://opencode.ai) for Zen balance monitoring
+- **Z.ai account** with API token for Z.ai usage monitoring (see [Z.ai Setup](#zai-setup))
 - **Python 3.11+**
 - **uv** package manager
   ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
@@ -387,6 +428,7 @@ waybar-ai-usage/
 ├── codex.py                      # OpenAI Codex CLI usage monitor
 ├── copilot.py                    # GitHub Copilot premium request monitor
 ├── zen.py                        # OpenCode Zen balance monitor
+├── zai.py                        # Z.ai usage quota monitor
 ├── pyproject.toml                # Project metadata and dependencies
 ├── waybar-config-example.jsonc   # Template used by setup
 ├── waybar-style-example.css      # Template used by setup

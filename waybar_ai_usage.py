@@ -15,6 +15,7 @@ MODULES = [
     {"key": "custom/codex-usage", "name": "Codex CLI", "desc": "usage limits", "default": True},
     {"key": "custom/copilot-usage", "name": "GitHub Copilot", "desc": "premium requests", "default": "copilot.conf"},
     {"key": "custom/zen-balance", "name": "OpenCode Zen", "desc": "balance monitor", "default": False},
+    {"key": "custom/zai-usage", "name": "Z.ai", "desc": "usage quota", "default": "zai.conf"},
 ]
 
 TEMPLATE_CONFIG = """// Waybar Configuration Example
@@ -86,6 +87,19 @@ TEMPLATE_CONFIG = """// Waybar Configuration Example
     "tooltip": true,
     "on-click": "pkill -RTMIN+11 waybar",  // Click to refresh immediately
     "signal": 11  // Refresh when receiving signal 11
+  },
+
+  // Z.ai Usage Quota Monitor
+  "custom/zai-usage": {
+    // Requires ~/.config/waybar-ai-usage/zai.conf with ZAI_TOKEN=eyJ...
+    "exec": "~/.local/bin/zai-usage --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+12 waybar",  // Click to refresh immediately
+    "signal": 12  // Refresh when receiving signal 12
   }
 }
 """
@@ -205,11 +219,41 @@ TEMPLATE_STYLE = """/* Claude Code Usage Monitor Styling */
   color: #f38ba8;  /* Red: critically low (< $5) */
 }
 
+/* Z.ai Usage Quota Monitor Styling */
+#custom-zai-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-zai-usage:hover {
+  background: rgba(18, 110, 244, 0.15);
+}
+
+/* Color-coded by usage level */
+#custom-zai-usage.zai-low {
+  color: #a6e3a1;  /* Green: low usage (0-49%) */
+}
+
+#custom-zai-usage.zai-mid {
+  color: #f9e2af;  /* Yellow: medium usage (50-79%) */
+}
+
+#custom-zai-usage.zai-high {
+  color: #f38ba8;  /* Red: high usage (80-100%) */
+}
+
 /* Error state (network failures, auth errors, etc.) */
 #custom-claude-usage.critical,
 #custom-codex-usage.critical,
 #custom-copilot-usage.critical,
-#custom-zen-balance.critical {
+#custom-zen-balance.critical,
+#custom-zai-usage.critical {
   color: #ff5555;
   background: rgba(255, 85, 85, 0.1);
 }
@@ -434,6 +478,8 @@ def _remove_style_blocks(lines: list[str]) -> list[str]:
         "#custom-codex-usage",
         "#custom-copilot-usage",
         "#custom-zen-balance",
+
+        "#custom-zai-usage",
     )
     out: list[str] = []
     skipping = False
@@ -483,7 +529,7 @@ def _read_template(path: Path, fallback: str) -> str:
 
 
 def _resolve_exec_base() -> str:
-    binaries = ("claude-usage", "codex-usage", "copilot-usage", "zen-balance")
+    binaries = ("claude-usage", "codex-usage", "copilot-usage", "zen-balance", "zai-usage")
     if any(Path(f"/usr/bin/{b}").exists() for b in binaries):
         return "/usr/bin"
     if any(Path(f"~/.local/bin/{b}").expanduser().exists() for b in binaries):
@@ -508,6 +554,7 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
                     "custom/codex-usage",
                     "custom/copilot-usage",
                     "custom/zen-balance",
+                    "custom/zai-usage",
                 )
             ]
             if new_modules != modules_left:
@@ -524,6 +571,9 @@ def _remove_config(config_path: Path, style_path: Path, dry_run: bool) -> None:
             changed = True
         if "custom/copilot-usage" in config_data:
             config_data.pop("custom/copilot-usage", None)
+            changed = True
+        if "custom/zai-usage" in config_data:
+            config_data.pop("custom/zai-usage", None)
             changed = True
 
         if changed:
