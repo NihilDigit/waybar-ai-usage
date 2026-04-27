@@ -18,8 +18,6 @@ ZAI_ICON = "Z"
 ZAI_COLOR = "#126EF4"
 API_BASE = "https://api.z.ai"
 QUOTA_URL = f"{API_BASE}/api/monitor/usage/quota/limit"
-MODEL_USAGE_URL = f"{API_BASE}/api/monitor/usage/model-usage"
-TOOL_USAGE_URL = f"{API_BASE}/api/monitor/usage/tool-usage"
 
 
 def load_zai_config(config_path: Path | None = None) -> dict:
@@ -160,11 +158,12 @@ def print_waybar(
     reset_str = _format_ms_reset(tl.get("nextResetTime")) if tl else "??"
 
     is_unused = pct == 0 and tl and tl.get("remaining") is not None
+    window_not_started = pct == 0 and tl and tl.get("nextResetTime") is None
     is_exhausted = pct >= 100
 
     if is_exhausted:
         status = "Pause"
-    elif is_unused:
+    elif is_unused or window_not_started:
         status = "Ready"
     else:
         status = ""
@@ -203,18 +202,20 @@ def print_waybar(
     if tooltip_format:
         tooltip = format_output(tooltip_format, data)
     else:
-        lines = ["Z.ai Usage", "\u2501" * 24]
+        lines = [
+            "Window     Used    Reset",
+            "\u2501" * 24,
+        ]
         if tl:
-            lines.append(f"5h Tokens : {pct}%  Reset: {reset_str}")
+            lines.append(f"Tokens     {pct:>3}%    {reset_str}")
         if ml:
             ml_pct = ml.get("percentage", 0)
-            ml_remaining = ml.get("remaining", 0)
             ml_reset = _format_ms_reset(ml.get("nextResetTime"))
-            lines.append(f"Tools      : {ml_pct}% ({ml_remaining} remaining)  Reset: {ml_reset}")
+            lines.append(f"Tools      {ml_pct:>3}%    {ml_reset}")
             for d in ml.get("usageDetails", []):
                 code = d.get("modelCode", "?")
                 usage = d.get("usage", 0)
-                lines.append(f"  \u2022 {code}: {usage}")
+                lines.append(f"  \u2022 {code:<12} {usage}")
         lines.append("")
         lines.append("Click to Refresh")
         tooltip = "\n".join(lines)
@@ -278,8 +279,8 @@ def main() -> None:
                 "text": f"<span foreground='#ff5555'>{ZAI_ICON} No Token</span>",
                 "tooltip": (
                     f"No ZAI_TOKEN found in {args.config}\n"
-                    f"1. Go to https://z.ai/manage-apikey/subscription\n"
-                    f"2. Open DevTools > Network\n"
+                    f"1. Go to https://z.ai and log in\n"
+                    f"2. Open DevTools (F12) > Network tab\n"
                     f"3. Find a request to api.z.ai and copy the Authorization header\n"
                     f"4. Save as ZAI_TOKEN=eyJ... in {args.config}"
                 ),
