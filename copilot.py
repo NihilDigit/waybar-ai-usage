@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
+
+import browser_cookie3
+from curl_cffi import requests
 
 from common import format_eta, format_output, get_cached_or_fetch
 
@@ -18,6 +22,7 @@ COPILOT_ICON = "\uf4b8"   # nf-seti-copilot — same as LazyVim/Neovim Copilot (
 COPILOT_COLOR = "#8b5cf6"
 DEFAULT_QUOTA = 300
 GITHUB_API_BASE = "https://api.github.com"
+COPILOT_FEATURES_URL = "https://github.com/settings/copilot/features"
 
 
 def load_copilot_config(config_path: Path | None = None) -> dict:
@@ -99,9 +104,111 @@ def _fetch_copilot_usage_uncached(token: str) -> dict:
     return {"used": round(used, 1), "raw": usage_data}
 
 
-def get_copilot_usage(token: str) -> dict:
+def _iter_chrome_cookie_files() -> list[Path]:
+    root = Path("~/.config/google-chrome").expanduser()
+    files: list[Path] = []
+    for pattern in ("Default/Cookies", "Profile */Cookies"):
+        files.extend(sorted(root.glob(pattern)))
+    return files
+
+
+def _load_github_cookies(cookie_file: Path) -> dict:
+    cookiejar = browser_cookie3.chrome(cookie_file=str(cookie_file), domain_name="github.com")
+    return {cookie.name: cookie.value for cookie in cookiejar}
+
+
+def _fetch_copilot_usage_from_browser() -> dict:
+    """Fetch Copilot usage percentage from the authenticated Copilot settings page.
+
+    This is a fallback for organization-managed Copilot accounts, where the
+    user billing API does not expose premium request usage. The page itself
+    renders a usage percentage for the currently signed-in account.
+    """
+    errors: list[str] = []
+
+    for cookie_file in _iter_chrome_cookie_files():
+        profile_name = cookie_file.parent.name
+        try:
+            cookies = _load_github_cookies(cookie_file)
+            if not cookies:
+                errors.append(f"{profile_name}: no github.com cookies")
+                continue
+
+            response = requests.get(
+                COPILOT_FEATURES_URL,
+                cookies=cookies,
+                impersonate="chrome",
+                timeout=20,
+                allow_redirects=True,
+            )
+            if response.status_code != 200:
+                errors.append(f"{profile_name}: HTTP {response.status_code}")
+                continue
+
+            html = response.text
+            if 'id="copilot-overages-usage"' not in html:
+                errors.append(f"{profile_name}: no copilot usage section")
+                continue
+
+            section_match = re.search(
+                r'<div id="copilot-overages-usage".*?</li>',
+                html,
+                re.S,
+            )
+            if not section_match:
+                errors.append(f"{profile_name}: usage section parse failed")
+                continue
+
+            pct_match = re.search(r'>\s*(\d+(?:\.\d+)?)%\s*<', section_match.group(0))
+            if not pct_match:
+                errors.append(f"{profile_name}: no usage percentage found")
+                continue
+
+            managed_by = re.search(
+                r'Managed by\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>',
+                html,
+            )
+            return {
+                "pct": float(pct_match.group(1)),
+                "raw": {
+                    "managed_by_name": managed_by.group(2) if managed_by else None,
+                    "managed_by_href": managed_by.group(1) if managed_by else None,
+                },
+                "source": f"chrome:{profile_name}:copilot-features",
+            }
+        except Exception as exc:
+            errors.append(f"{profile_name}: {exc}")
+
+    detail = "; ".join(errors) if errors else "no Chrome profiles found"
+    raise RuntimeError(
+        "No GitHub Chrome profile exposed Copilot premium request usage. "
+        f"Checked: {detail}"
+    )
+
+
+def _should_fallback_to_browser(error: Exception) -> bool:
+    """Only fall back for user billing API responses that are expected for org-managed Copilot."""
+    message = str(error)
+    return any(code in message for code in ("HTTP 400", "HTTP 403", "HTTP 404"))
+
+
+def get_copilot_usage(token: str | None) -> dict:
     """Fetch Copilot usage with file-based caching (TTL: 60 seconds)."""
-    return get_cached_or_fetch("copilot", lambda: _fetch_copilot_usage_uncached(token))
+    def fetch_browser() -> dict:
+        return get_cached_or_fetch("copilot_browser", _fetch_copilot_usage_from_browser)
+
+    def fetch() -> dict:
+        try:
+            return _fetch_copilot_usage_uncached(token)
+        except Exception as exc:
+            if not _should_fallback_to_browser(exc):
+                raise
+            return fetch_browser()
+
+    if not token:
+        return fetch_browser()
+
+    return get_cached_or_fetch("copilot", fetch)
 
 
 # ==================== Output: CLI / Waybar ====================
@@ -222,40 +329,48 @@ def main() -> None:
     token = config["GITHUB_TOKEN"]
     quota = config["COPILOT_QUOTA"]
 
-    if not token:
-        if args.waybar:
-            print(json.dumps({
-                "text": f"<span foreground='#ff5555'>{COPILOT_ICON} No Token</span>",
-                "tooltip": (
-                    f"No GITHUB_TOKEN found in {args.config}\n"
-                    f"Create a fine-grained PAT with 'Plan (read)' permission:\n"
-                    f"https://github.com/settings/personal-access-tokens/new\n"
-                    f"Then save as GITHUB_TOKEN=github_pat_xxx in {args.config}"
-                ),
-                "class": "critical",
-            }))
-            sys.exit(0)
-        else:
-            print(f"[!] Error: No GITHUB_TOKEN in {args.config}", file=sys.stderr)
-            print(f"    Create a fine-grained PAT with 'Plan (read)' permission:", file=sys.stderr)
-            print(f"    https://github.com/settings/personal-access-tokens/new", file=sys.stderr)
-            sys.exit(1)
-
     try:
         usage = get_copilot_usage(token)
         used = usage.get("used", 0)
+        pct = usage.get("pct")
+        if pct is not None:
+            used = round(quota * float(pct) / 100, 1)
     except Exception as e:
         if args.waybar:
             err_msg = str(e)
-            is_auth = "401" in err_msg or "403" in err_msg or "404" in err_msg
+            is_auth = any(
+                marker in err_msg
+                for marker in (
+                    "401",
+                    "403",
+                    "404",
+                    "No GitHub Chrome profile exposed",
+                    "no github.com cookies",
+                    "no copilot usage section",
+                )
+            )
             short_err = "Auth Err" if is_auth else "Net Err"
             tooltip = f"Error fetching Copilot usage:\n{err_msg}"
-            if "404" in err_msg:
+            if not token:
                 tooltip += (
-                    "\n\nThis endpoint requires a fine-grained PAT with"
+                    f"\n\nNo GITHUB_TOKEN found in {args.config}."
+                    "\nFor personal Copilot, create a fine-grained PAT with"
                     "\n'Plan (read)' permission."
-                    "\nhttps://github.com/settings/personal-access-tokens/new"
+                    "\nFor organization-managed Copilot, log into GitHub in Chrome"
+                    "\nand make sure usage is visible on"
+                    "\nhttps://github.com/settings/copilot/features"
                 )
+            if "No GitHub Chrome profile exposed Copilot premium request usage" in err_msg:
+                tooltip += (
+                    "\n\nFor organization-managed Copilot, make sure you're logged into"
+                    "\nGitHub in a Chrome profile and can see usage on"
+                    "\nhttps://github.com/settings/copilot/features"
+                )
+                if token:
+                    tooltip += (
+                        "\n\nFor personal Copilot, verify your fine-grained PAT has"
+                        "\nUser permissions -> Plan -> Read-only."
+                    )
             print(json.dumps({
                 "text": f"<span foreground='#ff5555'>{COPILOT_ICON} {short_err}</span>",
                 "tooltip": tooltip,
@@ -263,6 +378,11 @@ def main() -> None:
             }))
             sys.exit(0)
         else:
+            if not token:
+                print(f"[!] Error: No GITHUB_TOKEN in {args.config}", file=sys.stderr)
+                print("    For personal Copilot, create a fine-grained PAT with 'Plan (read)' permission.", file=sys.stderr)
+                print("    For organization-managed Copilot, log into GitHub in Chrome and check:", file=sys.stderr)
+                print(f"    {COPILOT_FEATURES_URL}", file=sys.stderr)
             print(f"[!] Critical Error: {e}", file=sys.stderr)
             sys.exit(1)
 

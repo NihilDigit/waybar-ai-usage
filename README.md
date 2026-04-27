@@ -110,7 +110,7 @@ Copilot uses a **GitHub Personal Access Token** instead of browser cookies.
 
 > **Note**: The **"Copilot"** permission scope is *not* the right one — you need **"Plan"**.
 >
-> This endpoint only works if your Copilot license is billed directly to your personal account (Copilot Pro/Pro+). If your license is managed by an organization, the data won't appear here.
+> This API endpoint only works if your Copilot license is billed directly to your personal account (Copilot Pro/Pro+). If your license is managed by an organization, `copilot-usage` will automatically fall back to reading the usage percentage from the authenticated Copilot settings page in your browser.
 
 **2. Create the config file**
 
@@ -137,6 +137,17 @@ COPILOT_QUOTA=300
 copilot-usage          # Shows used/quota in terminal
 copilot-usage --waybar # Shows Waybar JSON
 ```
+
+### Organization-Managed Copilot
+
+If your Copilot license is managed by an organization or enterprise:
+
+1. Log into GitHub in any supported browser (Chrome, Chromium, Brave, Edge, Firefox, or Helium)
+2. Open `https://github.com/settings/copilot/features`
+3. Confirm the page shows the **Premium requests** usage percentage
+4. Run `copilot-usage`
+
+The script will try the personal billing API first, then fall back to reading the usage percentage from the browser-authenticated Copilot settings page, using the same cross-browser cookie discovery as the other providers.
 
 </details>
 
