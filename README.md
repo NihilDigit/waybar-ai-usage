@@ -6,7 +6,19 @@ Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, **OpenCode Ze
 
 ![showcase](https://github.com/user-attachments/assets/13e8a4a1-6778-484f-8a37-cba238aefea5)
 
-This tool displays your AI coding assistant usage limits in real-time by reading browser cookies (Chrome by default) or API tokens. No API keys needed for Claude and Codex!
+This tool displays your AI coding assistant usage limits in real-time by reading browser cookies or API tokens. No API key needed for Claude, Codex, or OpenCode Zen — they use the browser session you're already signed into.
+
+## Contents
+
+- [What This Monitors](#what-this-monitors)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Setup](#setup) — Claude, Codex, Copilot, Zen, Z.ai
+- [Usage](#usage)
+- [Formatting Configuration](#formatting-configuration) — see also [docs/formatting.md](docs/formatting.md)
+- [Display States](#display-states)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing) — see also [CLAUDE.md](CLAUDE.md)
 
 ## What This Monitors
 
@@ -28,15 +40,13 @@ This tool displays your AI coding assistant usage limits in real-time by reading
   - Monthly tool quota (web search, web reader, ZRead)
   - Uses API token from config file
 
-## Features
+## Requirements
 
-- 🎨 Real-time usage percentage display
-- ⏰ Countdown timer until quota reset
-- 🚦 Color-coded warnings (green → yellow → red)
-- 🔄 Click to refresh instantly
-- 🍪 Uses browser cookies (Chrome by default, configurable) - no API key needed
-- 🎯 Special states: "Ready" (unused) and "Pause" (quota exhausted)
-- 🔁 Auto-retry on network errors
+- **Linux** with **Waybar** running
+- A signed-in browser session for whichever cookie-based providers you monitor — [Claude.ai](https://claude.ai), [ChatGPT](https://chatgpt.com), [OpenCode](https://opencode.ai). See [Setup](#setup) for the supported browser list.
+- **GitHub fine-grained PAT** — required for Copilot (see [Setup](#setup))
+- **Z.ai API token** — required for Z.ai (see [Setup](#setup))
+- **Python 3.11+** and **uv** ([install uv](https://docs.astral.sh/uv/getting-started/installation/))
 
 ## Installation
 
@@ -67,11 +77,30 @@ cd waybar-ai-usage
 uv sync
 ```
 
-## GitHub Copilot Setup
+## Setup
 
-Unlike Claude and Codex, Copilot uses a **GitHub Personal Access Token** instead of browser cookies.
+Each provider authenticates differently. Expand the ones you need.
 
-### 1. Create a Fine-Grained PAT
+<details>
+<summary><b>Claude &amp; Codex</b> — browser cookies, automatic if you're already signed in</summary>
+
+Claude and Codex pick up your existing browser session — no config file needed. As long as you're signed into [claude.ai](https://claude.ai) and [chatgpt.com](https://chatgpt.com) in a supported browser, just run:
+
+```bash
+claude-usage
+codex-usage
+```
+
+Default browser probe order: `chrome` → `chromium` → `brave` → `edge` → `firefox` → `helium`. Override with `--browser <name>` (repeatable) if you need a specific browser. See [Troubleshooting](#troubleshooting) if cookies aren't picked up.
+
+</details>
+
+<details>
+<summary><b>GitHub Copilot</b> — fine-grained PAT in a config file</summary>
+
+Copilot uses a **GitHub Personal Access Token** instead of browser cookies.
+
+**1. Create a fine-grained PAT**
 
 1. Go to **GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens**
 2. Click **"Generate new token"**
@@ -83,7 +112,7 @@ Unlike Claude and Codex, Copilot uses a **GitHub Personal Access Token** instead
 >
 > This endpoint only works if your Copilot license is billed directly to your personal account (Copilot Pro/Pro+). If your license is managed by an organization, the data won't appear here.
 
-### 2. Create the Config File
+**2. Create the config file**
 
 ```bash
 mkdir -p ~/.config/waybar-ai-usage
@@ -102,42 +131,42 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 COPILOT_QUOTA=300
 ```
 
-### 3. Test It
+**3. Test it**
 
 ```bash
 copilot-usage          # Shows used/quota in terminal
 copilot-usage --waybar # Shows Waybar JSON
 ```
 
-## OpenCode Zen Setup
+</details>
 
-Unlike Claude and Codex which have usage windows, **Zen** shows your current pay-as-you-go balance.
+<details>
+<summary><b>OpenCode Zen</b> — browser cookies, automatic if you're already signed in</summary>
 
-### 1. Login to OpenCode
-
-Make sure you're logged into [opencode.ai](https://opencode.ai) in your Chrome/Chromium browser.
-
-### 2. Test It
+Zen shows your pay-as-you-go balance and uses browser cookies just like Claude and Codex. Make sure you're logged into [opencode.ai](https://opencode.ai) in a supported browser, then:
 
 ```bash
 zen-balance          # Shows balance in terminal
 zen-balance --waybar # Shows Waybar JSON
 ```
 
-No configuration needed - it uses browser cookies just like Claude and Codex!
+No config file needed.
 
-## Z.ai Setup
+</details>
 
-Unlike Claude and Codex which use browser cookies, **Z.ai** uses an API token for authentication.
+<details>
+<summary><b>Z.ai</b> — API token in a config file</summary>
 
-### 1. Get Your API Token
+Z.ai uses an API token captured from your browser session.
+
+**1. Get your API token**
 
 1. Go to [z.ai](https://z.ai) and log in
 2. Open DevTools (**F12**) > **Network** tab
 3. Find any request to `api.z.ai` and copy the `Authorization` header value (e.g. `Bearer eyJ...`)
 4. You only need the token part after `Bearer `
 
-### 2. Create the Config File
+**2. Create the config file**
 
 ```bash
 mkdir -p ~/.config/waybar-ai-usage
@@ -150,12 +179,16 @@ Create `~/.config/waybar-ai-usage/zai.conf`:
 ZAI_TOKEN=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 3. Test It
+**3. Test it**
 
 ```bash
 zai-usage          # Shows usage in terminal
 zai-usage --waybar # Shows Waybar JSON
 ```
+
+> **Note**: The Z.ai JWT can expire after a while. If you start seeing `Auth Err` later, repeat step 1 to grab a fresh token.
+
+</details>
 
 ## Usage
 
@@ -226,7 +259,7 @@ uv run python codex.py
 uv tool install waybar-ai-usage
 ```
 
-After installation, the commands `claude-usage`, `codex-usage`, and `copilot-usage` will be available in your PATH.
+After installation, the commands `claude-usage`, `codex-usage`, `copilot-usage`, `zen-balance`, and `zai-usage` will be available in your PATH (along with `waybar-ai-usage` for setup/cleanup).
 
 #### Step 2: Run setup
 
@@ -235,7 +268,7 @@ waybar-ai-usage setup
 ```
 
 This will add the required Waybar modules and styles (with backup + confirmation).
-Copilot module is only added if `~/.config/waybar-ai-usage/copilot.conf` exists (see [GitHub Copilot Setup](#github-copilot-setup)).
+Copilot module is only added if `~/.config/waybar-ai-usage/copilot.conf` exists (see [Setup](#setup)).
 If you want to force a specific browser order in Waybar, pass it here:
 ```bash
 waybar-ai-usage setup --browser chromium --browser brave
@@ -255,136 +288,21 @@ pkill waybar && waybar &
 
 ## Formatting Configuration
 
-You can customize the output format using the `--format` and `--tooltip-format`
-options. This allows you to:
-
-- Show specific data points (5-hour or 7-day)
-- Remove or customize icons
-- Create your own layout
-
-### Available Variables
-
-All variables are available for both `--format` and `--tooltip-format`:
-
-| Variable            | Description                     | Example                               |
-| ------------------- | ------------------------------- | ------------------------------------- |
-| `{icon}`            | Service icon with color styling | `<span foreground='#DE7356'>󰜡</span>` |
-| `{icon_plain}`      | Service icon without styling    | `󰜡` (Claude) or `󰬫` (Codex)           |
-| `{time_icon}`       | Time icon with color styling    | `<span foreground='#DE7356'>󰔚</span>` |
-| `{time_icon_plain}` | Time icon without styling       | `󰔚`                                   |
-| `{5h_pct}`          | 5-hour window percentage        | `45`                                  |
-| `{7d_pct}`          | 7-day window percentage         | `67`                                  |
-| `{5h_reset}`        | 5-hour reset time               | `4h23m`                               |
-| `{7d_reset}`        | 7-day reset time                | `2d15h`                               |
-| `{pct}`             | Active window percentage        | Varies based on active window         |
-| `{reset}`           | Active window reset time        | Varies based on active window         |
-| `{status}`          | Status text                     | `Ready`, `Pause`, or empty            |
-| `{win}`             | Active window name              | `5h` or `7d`                          |
-
-### Format Examples
-
-```bash
-# Show only 5-hour data without styled icons
-claude-usage --waybar --format "{icon_plain} {5h_pct}% {time_icon_plain} {5h_reset}"
-
-# Show both 5-hour and 7-day percentages
-claude-usage --waybar --format "{icon} 5h:{5h_pct}% 7d:{7d_pct}%"
-
-# Minimal format with just percentage
-codex-usage --waybar --format "{5h_pct}%"
-
-# Custom tooltip showing both windows
-claude-usage --waybar --tooltip-format "5-Hour: {5h_pct}%  Reset: {5h_reset}\n7-Day: {7d_pct}%  Reset: {7d_reset}"
-
-# Always show 5-hour window (disable auto-switch to 7-day)
-claude-usage --waybar --show-5h
-```
-
-### Waybar Configuration Example
-
-Pass formatting directly to the script using `--format` (useful for styled icons with colors):
-
-```jsonc
-"custom/claude-usage": {
-    "exec": "~/.local/bin/claude-usage --waybar --format '{icon} {5h_pct}% {time_icon} {5h_reset}'",
-    "return-type": "json",
-    "interval": 120,
-    "on-click": "~/.local/bin/claude-usage --waybar --format '{icon} {5h_pct}% {time_icon} {5h_reset}'"
-}
-```
-
-When using `--format`, `{icon}` includes HTML color styling.
-
-Without `--format`, the script provides a default formatted text:
-
-```jsonc
-"custom/claude-usage": {
-    "exec": "~/.local/bin/claude-usage --waybar",
-    "return-type": "json",
-    "interval": 120
-}
-```
-
-This displays: `󰜡 98% 󰔚 2d21h` (with colored icons)
-
-**Note**: When using `%` in shell commands, you may need to escape it as `%%`
-depending on your shell.
-
-### Conditional Formatting
-
-You can use conditional blocks to show or hide sections based on whether a time
-window has started:
-
-**Single variable conditions:**
-
-- `{?5h_reset}...{/5h_reset}` - Show content only if 5h window has started
-- `{?7d_reset}...{/7d_reset}` - Show content only if 7d window has started
-
-**Multiple variable conditions:**
-
-- `{?5h_reset&7d_reset}...{/}` - Show content only if both windows have started
-
-#### Conditional Examples
-
-```bash
-# Show both windows only if they've started, with separator only when both present
-claude-usage --waybar --format '{?5h_reset}{5h_pct}/{5h_reset}{/5h_reset}{?5h_reset&7d_reset} - {/}{?7d_reset}{7d_pct}/{7d_reset}{/7d_reset}'
-
-# Show 5h data only when active, otherwise show nothing
-codex-usage --waybar --format '{?5h_reset}{icon} {5h_pct}% {time_icon} {5h_reset}{/5h_reset}'
-```
-
-The first example will display:
-
-- Nothing when both windows are "Not started"
-- `45/4h23m` when only 5h window is active
-- `67/2d15h` when only 7d window is active
-- `45/4h23m - 67/2d15h` when both windows are active
+The default output works without any configuration. To customize what each widget shows — variables, conditional blocks, custom layouts — see [docs/formatting.md](docs/formatting.md).
 
 ## Display States
 
-### Normal States
+Color thresholds are defined in `waybar-style-example.css` and applied via Waybar CSS classes — edit the stylesheet to taste. The shipped defaults:
 
-- **Green** (0-49%): Low usage, plenty of quota remaining
-- **Yellow** (50-79%): Moderate usage, consider managing requests
-- **Red** (80-99%): High usage, approaching limit
+- **Green** — low usage (`<50%` for Claude/Codex/Copilot/Z.ai; healthy balance for Zen)
+- **Yellow** — moderate usage (`50–79%`; low balance for Zen)
+- **Red** — high usage (`≥80%`; near-empty balance for Zen)
+- **Critical** (red, with bg tint) — fetch failed (auth or network error)
 
-### Special States
+Special bar text states (Claude, Codex, Z.ai only):
 
-- **Ready** (󰬫/󰜡): Window hasn't been activated yet (0% usage, ~5h remaining)
-- **Pause** (󰬫/󰜡): Weekly quota exhausted (100% usage)
-
-## Requirements
-
-- **Chrome browser** (default) or another supported browser with active login
-  to:
-  - [Claude.ai](https://claude.ai) for Claude Code monitoring
-  - [ChatGPT](https://chatgpt.com) for Codex CLI monitoring
-  - [OpenCode](https://opencode.ai) for Zen balance monitoring
-- **Z.ai account** with API token for Z.ai usage monitoring (see [Z.ai Setup](#zai-setup))
-- **Python 3.11+**
-- **uv** package manager
-  ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Ready** — window hasn't been activated yet (0% used, full reset window remaining)
+- **Pause** — quota exhausted (100% used). For Claude/Codex this means the long window (7-day / Secondary) is fully consumed
 
 ## Troubleshooting
 
@@ -402,75 +320,31 @@ python -c "import browser_cookie3; print(list(browser_cookie3.chromium(domain_na
 
 ### "403 Forbidden" or "Net Err"
 
-1. Refresh the Claude/ChatGPT page in your Chrome browser
+1. Refresh the Claude/ChatGPT/OpenCode page in your browser
 2. Check if your IP is blocked by Cloudflare
 3. Update dependencies: `uv sync --upgrade`
-4. The tool has built-in retry (1 retry with 10s timeout)
+4. Cookie-based providers (Claude, Codex, Zen) retry once on failure (10s timeout each); Copilot and Z.ai do not retry
 
-### Using Other Browsers
+### Wrong browser picked / `Missing 'lastActiveOrg'`
 
-You can select browsers in order using `--browser` (repeatable). Without it, the default order is: `chrome`, `chromium`, `brave`, `edge`, `firefox`, `helium`.
+If you have multiple browsers installed, the tool may pick one you're not actually signed into and then return errors like `Missing 'lastActiveOrg' in cookies` or `Auth Err`. Force a specific browser with `--browser` (repeatable, tried in order):
 
 ```bash
 claude-usage --browser chromium --browser brave
 codex-usage --browser helium
 ```
 
-## Project Structure
+For Waybar, append `--browser <name>` to the `exec` line in your config, or pass it to `waybar-ai-usage setup` so it's baked in:
 
-```
-waybar-ai-usage/
-├── assets/
-│   ├── claude.svg                # Claude logo (unused in current version)
-│   └── codex.svg                 # ChatGPT/OpenAI logo (unused in current version)
-├── common.py                     # Shared utilities (time formatting, window parsing)
-├── claude.py                     # Claude Code usage monitor
-├── codex.py                      # OpenAI Codex CLI usage monitor
-├── copilot.py                    # GitHub Copilot premium request monitor
-├── zen.py                        # OpenCode Zen balance monitor
-├── zai.py                        # Z.ai usage quota monitor
-├── pyproject.toml                # Project metadata and dependencies
-├── waybar-config-example.jsonc   # Template used by setup
-├── waybar-style-example.css      # Template used by setup
-├── LICENSE                       # MIT License
-└── README.md                     # This file
+```bash
+waybar-ai-usage setup --browser chromium
 ```
 
-## How It Works
-
-1. **Cookie Extraction**: Uses `browser_cookie3` to read authentication cookies from your chosen browser (Claude/Codex)
-2. **Token Auth**: GitHub Copilot uses a Personal Access Token stored in a local config file
-3. **API Requests**: Makes authenticated requests to Claude.ai, ChatGPT, and GitHub APIs
-4. **Usage Parsing**: Extracts usage percentages and reset times from API responses
-4. **Waybar Output**: Formats data as JSON for Waybar's custom module
-5. **Auto-refresh**: Waybar polls every 2 minutes (configurable via `interval`)
-
-### Network Configuration
-
-- **Timeout**: 10 seconds per request
-- **Retry**: 1 automatic retry on failure (total 2 attempts)
-- **Refresh interval**: 120 seconds (2 minutes) recommended
+Default probe order if `--browser` is not given: `chrome`, `chromium`, `brave`, `edge`, `firefox`, `helium`.
 
 ## Contributing
 
-Contributions are welcome! Areas for improvement:
-
-- [x] Support for Firefox, Brave, Chromium browsers
-- [x] Better UX for setup/cleanup (preview changes, restore helper)
-- [x] Caching mechanism to reduce API calls (v0.4.0+)
-- [x] GitHub Copilot premium request monitoring (v0.5.0+)
-- [x] OpenCode Zen balance monitoring
-- [ ] Better error messages
-- [ ] More examples and screenshots
-
-### For Maintainers
-
-See [RELEASING.md](RELEASING.md) for release process documentation.
-
-Quick release:
-```bash
-./release.sh 0.5.0
-```
+Contributions welcome — especially new providers. See [CLAUDE.md](CLAUDE.md) for the architecture overview, the provider contract, and the touch-points required when adding a provider.
 
 ## License
 
