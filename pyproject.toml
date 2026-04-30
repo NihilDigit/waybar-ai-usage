@@ -1,11 +1,11 @@
 [project]
 name = "waybar-ai-usage"
 version = "0.6.3"
-description = "Monitor Claude, ChatGPT, GitHub Copilot, and OpenCode Zen usage in Waybar"
+description = "Monitor Claude, ChatGPT, GitHub Copilot, OpenCode Zen, and Z.ai usage in Waybar"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["waybar", "claude", "chatgpt", "openai", "copilot", "github", "usage", "monitor", "opencode", "zen"]
+keywords = ["waybar", "claude", "chatgpt", "openai", "copilot", "github", "usage", "monitor", "opencode", "zen", "zai"]
 authors = [
     { name = "NihilDigit" }
 ]
@@ -34,6 +34,7 @@ claude-usage = "claude:main"
 codex-usage = "codex:main"
 copilot-usage = "copilot:main"
 zen-balance = "zen:main"
+zai-usage = "zai:main"
 waybar-ai-usage = "waybar_ai_usage:main"
 
 [build-system]
@@ -41,7 +42,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["claude.py", "codex.py", "copilot.py", "zen.py", "common.py", "waybar_ai_usage.py"]
+packages = ["claude.py", "codex.py", "copilot.py", "zen.py", "zai.py", "common.py", "waybar_ai_usage.py"]
 
 [dependency-groups]
 dev = []

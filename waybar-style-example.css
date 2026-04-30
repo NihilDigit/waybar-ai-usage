@@ -113,11 +113,40 @@
   color: #f38ba8;  /* Red: critically low (< $5) */
 }
 
+/* Z.ai Usage Quota Monitor Styling */
+#custom-zai-usage {
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: transparent;
+  font-family: 'Adwaita Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#custom-zai-usage:hover {
+  background: rgba(18, 110, 244, 0.15);
+}
+
+#custom-zai-usage.zai-low {
+  color: #a6e3a1;  /* Green: low usage (0-49%) */
+}
+
+#custom-zai-usage.zai-mid {
+  color: #f9e2af;  /* Yellow: medium usage (50-79%) */
+}
+
+#custom-zai-usage.zai-high {
+  color: #f38ba8;  /* Red: high usage (80-100%) */
+}
+
 /* Error state (network failures, auth errors, etc.) */
 #custom-claude-usage.critical,
 #custom-codex-usage.critical,
 #custom-copilot-usage.critical,
-#custom-zen-balance.critical {
+#custom-zen-balance.critical,
+#custom-zai-usage.critical {
   color: #ff5555;
   background: rgba(255, 85, 85, 0.1);
 }

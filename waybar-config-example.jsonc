@@ -67,5 +67,18 @@
     "tooltip": true,
     "on-click": "pkill -RTMIN+11 waybar",  // Click to refresh immediately
     "signal": 11  // Refresh when receiving signal 11
+  },
+
+  // Z.ai Usage Quota Monitor
+  "custom/zai-usage": {
+    // Requires ~/.config/waybar-ai-usage/zai.conf with ZAI_TOKEN=eyJ...
+    "exec": "~/.local/bin/zai-usage --waybar",
+
+    "return-type": "json",
+    "interval": 120,  // Refresh every 2 minutes
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "pkill -RTMIN+12 waybar",  // Click to refresh immediately
+    "signal": 12  // Refresh when receiving signal 12
   }
 }
