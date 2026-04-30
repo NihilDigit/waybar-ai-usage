@@ -1,6 +1,6 @@
 [project]
 name = "waybar-ai-usage"
-version = "0.6.3"
+version = "0.7.0"
 description = "Monitor Claude, ChatGPT, GitHub Copilot, OpenCode Zen, and Z.ai usage in Waybar"
 readme = "README.md"
 requires-python = ">=3.11"
