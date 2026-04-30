@@ -5,7 +5,6 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
 from pathlib import Path
 
 from common import format_eta, format_output, get_cached_or_fetch
@@ -110,14 +109,7 @@ def _format_tokens(value: int) -> str:
 def _format_ms_reset(ms: int | None) -> str:
     if not ms:
         return "??"
-    try:
-        reset_dt = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
-        now = datetime.now(timezone.utc)
-        delta = reset_dt - now
-        secs = int(delta.total_seconds())
-    except Exception:
-        return "??"
-    return format_eta(None) if secs <= 0 else format_eta(reset_dt.isoformat())
+    return format_eta(ms // 1000)
 
 
 # ==================== Output: CLI / Waybar ====================
@@ -157,13 +149,12 @@ def print_waybar(
     pct = tl.get("percentage", 0) if tl else 0
     reset_str = _format_ms_reset(tl.get("nextResetTime")) if tl else "??"
 
-    is_unused = pct == 0 and tl and tl.get("remaining") is not None
-    window_not_started = pct == 0 and tl and tl.get("nextResetTime") is None
+    is_ready = pct == 0 and tl is not None
     is_exhausted = pct >= 100
 
     if is_exhausted:
         status = "Pause"
-    elif is_unused or window_not_started:
+    elif is_ready:
         status = "Ready"
     else:
         status = ""
@@ -215,7 +206,7 @@ def print_waybar(
             for d in ml.get("usageDetails", []):
                 code = d.get("modelCode", "?")
                 usage = d.get("usage", 0)
-                lines.append(f"  \u2022 {code:<12} {usage}")
+                lines.append(f"  \u2022 {code:<12} {_format_tokens(usage)}")
         lines.append("")
         lines.append("Click to Refresh")
         tooltip = "\n".join(lines)

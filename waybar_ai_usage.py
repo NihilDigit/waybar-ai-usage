@@ -478,7 +478,6 @@ def _remove_style_blocks(lines: list[str]) -> list[str]:
         "#custom-codex-usage",
         "#custom-copilot-usage",
         "#custom-zen-balance",
-
         "#custom-zai-usage",
     )
     out: list[str] = []
