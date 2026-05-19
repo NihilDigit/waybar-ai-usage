@@ -110,14 +110,109 @@ def _fetch_copilot_usage_uncached(token: str) -> dict:
     return {"used": round(used, 1), "raw": usage_data}
 
 
+def _iter_chromium_profile_cookies(domain: str):
+    """Yield (cookies_dict, label) for every Chrome/Chromium/Brave profile that has cookies for domain.
+
+    Browsers store profiles like ~/.config/google-chrome/{Default, Profile 1, Profile 2, ...}.
+    The standard load_cookies() only reads the Default profile; this helper covers
+    accounts that live in secondary profiles (e.g. an Enterprise-managed Copilot seat
+    in Profile 1 while the personal GitHub account lives in Default).
+    """
+    import os
+    import browser_cookie3 as _bc3
+
+    roots = [
+        ("chrome", os.path.expanduser("~/.config/google-chrome")),
+        ("chromium", os.path.expanduser("~/.config/chromium")),
+        ("brave", os.path.expanduser("~/.config/BraveSoftware/Brave-Browser")),
+    ]
+    for browser_name, root in roots:
+        if not os.path.isdir(root):
+            continue
+        for entry in sorted(os.listdir(root)):
+            cookies_path = os.path.join(root, entry, "Cookies")
+            if not os.path.exists(cookies_path):
+                continue
+            try:
+                cj = _bc3.chrome(cookie_file=cookies_path, domain_name=domain)
+                cookies = {c.name: c.value for c in cj}
+            except Exception:
+                continue
+            if cookies:
+                yield cookies, f"{browser_name}:{entry}"
+
+
+def _parse_copilot_features_page(html: str):
+    """Return (pct, managed_by_name, managed_by_href) if the page renders usage, else None."""
+    if 'id="copilot-overages-usage"' not in html:
+        return None
+    section_match = re.search(r'<div id="copilot-overages-usage".*?</li>', html, re.S)
+    if not section_match:
+        return None
+    pct_match = re.search(r'>\s*(\d+(?:\.\d+)?)%\s*<', section_match.group(0))
+    if not pct_match:
+        return None
+    managed_by = re.search(
+        r'Managed by\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>',
+        html,
+    )
+    return (
+        float(pct_match.group(1)),
+        managed_by.group(2) if managed_by else None,
+        managed_by.group(1) if managed_by else None,
+    )
+
+
 def _fetch_copilot_usage_from_browser() -> dict:
     """Fetch Copilot usage percentage from the authenticated Copilot settings page.
 
-    This is a fallback for organization-managed Copilot accounts, where the
-    user billing API does not expose premium request usage. The page itself
-    renders a usage percentage for the currently signed-in account.
+    Iterates through every Chrome/Chromium/Brave profile until one returns a page
+    with the usage section. This handles the common case where the user has a
+    personal account in 'Default' and an Enterprise/Business-managed Copilot seat
+    in 'Profile 1'. Falls back to the original load_cookies() flow for non-chromium
+    browsers (Firefox, Helium).
     """
-    cookies, browser_name = load_cookies("github.com")
+    last_error = "no chromium-based browser profile found"
+    tried: list[str] = []
+
+    for cookies, label in _iter_chromium_profile_cookies("github.com"):
+        tried.append(label)
+        try:
+            response = requests.get(
+                COPILOT_FEATURES_URL,
+                cookies=cookies,
+                impersonate="chrome",
+                timeout=20,
+                allow_redirects=True,
+            )
+        except Exception as exc:
+            last_error = f"{label}: {exc}"
+            continue
+
+        if response.status_code != 200:
+            last_error = f"{label}: HTTP {response.status_code}"
+            continue
+
+        parsed = _parse_copilot_features_page(response.text)
+        if parsed is None:
+            last_error = f"{label}: no copilot usage section"
+            continue
+
+        pct, managed_name, managed_href = parsed
+        return {
+            "pct": pct,
+            "raw": {"managed_by_name": managed_name, "managed_by_href": managed_href},
+            "source": f"{label}:copilot-features",
+        }
+
+    # Last-resort fallback: use the original load_cookies() flow (covers firefox/helium).
+    try:
+        cookies, browser_name = load_cookies("github.com")
+    except Exception as exc:
+        raise RuntimeError(
+            f"No browser profile with Copilot usage found. Tried: {tried or 'none'}. "
+            f"Last error: {last_error}. Cookie loader: {exc}"
+        )
 
     response = requests.get(
         COPILOT_FEATURES_URL,
@@ -128,33 +223,15 @@ def _fetch_copilot_usage_from_browser() -> dict:
     )
     if response.status_code != 200:
         raise RuntimeError(f"{browser_name}: HTTP {response.status_code}")
-
-    html = response.text
-    if 'id="copilot-overages-usage"' not in html:
-        raise RuntimeError(f"{browser_name}: no copilot usage section found")
-
-    section_match = re.search(
-        r'<div id="copilot-overages-usage".*?</li>',
-        html,
-        re.S,
-    )
-    if not section_match:
-        raise RuntimeError(f"{browser_name}: usage section parse failed")
-
-    pct_match = re.search(r'>\s*(\d+(?:\.\d+)?)%\s*<', section_match.group(0))
-    if not pct_match:
-        raise RuntimeError(f"{browser_name}: no usage percentage found")
-
-    managed_by = re.search(
-        r'Managed by\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>',
-        html,
-    )
+    parsed = _parse_copilot_features_page(response.text)
+    if parsed is None:
+        raise RuntimeError(
+            f"No copilot usage section in any profile. Tried: {tried + [browser_name]}"
+        )
+    pct, managed_name, managed_href = parsed
     return {
-        "pct": float(pct_match.group(1)),
-        "raw": {
-            "managed_by_name": managed_by.group(2) if managed_by else None,
-            "managed_by_href": managed_by.group(1) if managed_by else None,
-        },
+        "pct": pct,
+        "raw": {"managed_by_name": managed_name, "managed_by_href": managed_href},
         "source": f"{browser_name}:copilot-features",
     }
 
