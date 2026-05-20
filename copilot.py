@@ -226,7 +226,7 @@ def _fetch_copilot_usage_from_browser() -> dict:
     parsed = _parse_copilot_features_page(response.text)
     if parsed is None:
         raise RuntimeError(
-            f"No copilot usage section in any profile. Tried: {tried + [browser_name]}"
+            f"no copilot usage section in any profile. Tried: {tried + [browser_name]}"
         )
     pct, managed_name, managed_href = parsed
     return {
