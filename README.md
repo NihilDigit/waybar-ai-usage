@@ -1,5 +1,6 @@
 # Waybar AI Usage
 
+[![AUR version](https://img.shields.io/aur/version/waybar-ai-usage)](https://aur.archlinux.org/packages/waybar-ai-usage)
 [![Mentioned in Awesome Codex CLI](https://awesome.re/mentioned-badge.svg)](https://github.com/RoggeOhta/awesome-codex-cli)
 
 Monitor **Claude Code**, **OpenAI Codex CLI**, **GitHub Copilot**, **OpenCode Zen**, and **Z.ai** usage directly in your Waybar status bar.
