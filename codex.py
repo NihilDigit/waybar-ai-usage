@@ -30,9 +30,11 @@ ICON_PATH = SCRIPT_DIR / "assets" / "codex.svg"
 def _fetch_codex_usage_uncached(browsers: list[str] | None = None) -> dict:
     """Internal function to fetch Codex usage data without caching"""
     try:
-        cookies_dict, _browser = load_cookies("chatgpt.com", browsers)
+        cookies_dict, browser = load_cookies("chatgpt.com", browsers)
     except Exception as e:
         raise RuntimeError(f"Failed to read browser cookies: {e}")
+
+    impersonate = "firefox" if browser == "firefox" else "chrome"
 
     # Retry once (2 attempts total)
     last_error = None
@@ -43,7 +45,7 @@ def _fetch_codex_usage_uncached(browsers: list[str] | None = None) -> dict:
                 SESSION_URL,
                 cookies=cookies_dict,
                 headers=BASE_HEADERS,
-                impersonate="chrome",
+                impersonate=impersonate,
                 timeout=10
             )
 
@@ -65,7 +67,7 @@ def _fetch_codex_usage_uncached(browsers: list[str] | None = None) -> dict:
                 CODEX_USAGE_URL,
                 cookies=cookies_dict,
                 headers=usage_headers,
-                impersonate="chrome",
+                impersonate=impersonate,
                 timeout=10
             )
 
