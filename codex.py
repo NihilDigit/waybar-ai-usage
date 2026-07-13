@@ -103,12 +103,22 @@ def print_waybar(
     show_5h: bool = False,
 ) -> None:
     rate = usage.get("rate_limit") or {}
-    p_win = parse_window_direct(rate.get("primary_window"))
-    s_win = parse_window_direct(rate.get("secondary_window"))
+    windows = [
+        rate.get("primary_window") or {},
+        rate.get("secondary_window") or {},
+    ]
 
     # Get raw window data to check for unused state
-    p_raw = rate.get("primary_window") or {}
-    s_raw = rate.get("secondary_window") or {}
+    p_raw = next(
+        (w for w in windows if w.get("limit_window_seconds") == 5 * 60 * 60),
+        {},
+    )
+    s_raw = next(
+        (w for w in windows if w.get("limit_window_seconds") == 7 * 24 * 60 * 60),
+        {},
+    )
+    p_win = parse_window_direct(p_raw)
+    s_win = parse_window_direct(s_raw)
 
     # Prepare all data points without icons
     p_reset_str = format_eta(p_win.resets_at) if p_win.resets_at else "Not started"
@@ -131,6 +141,10 @@ def print_waybar(
         win_type = "Secondary"
     elif s_win.utilization > 80:
         # Secondary window high usage
+        target_win = s_win
+        target_raw = s_raw
+        win_type = "Secondary"
+    elif not p_raw and s_raw:
         target_win = s_win
         target_raw = s_raw
         win_type = "Secondary"
@@ -222,8 +236,18 @@ def print_waybar(
 def print_cli(usage: dict) -> None:
     print(json.dumps(usage, indent=2))
     rate = usage.get("rate_limit") or {}
-    p = parse_window_direct(rate.get("primary_window"))
-    s = parse_window_direct(rate.get("secondary_window"))
+    windows = [
+        rate.get("primary_window") or {},
+        rate.get("secondary_window") or {},
+    ]
+    p = parse_window_direct(next(
+        (w for w in windows if w.get("limit_window_seconds") == 5 * 60 * 60),
+        {},
+    ))
+    s = parse_window_direct(next(
+        (w for w in windows if w.get("limit_window_seconds") == 7 * 24 * 60 * 60),
+        {},
+    ))
 
     print("-" * 40)
     print(f"Primary   (Short): {p.utilization:>5.1f}% | Reset in {format_eta(p.resets_at)}")
