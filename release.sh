@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYPROJECT="${REPO_ROOT}/pyproject.toml"
 PKGBUILD="${REPO_ROOT}/aur/waybar-ai-usage/PKGBUILD"
 SRCINFO="${REPO_ROOT}/aur/waybar-ai-usage/.SRCINFO"
+LOCKFILE="${REPO_ROOT}/uv.lock"
 GITHUB_REPO="NihilDigit/waybar-ai-usage"
 AUR_REPO="ssh://aur@aur.archlinux.org/waybar-ai-usage.git"
 
@@ -54,6 +55,17 @@ update_pkgbuild_version() {
     sed -i "s/^pkgrel=.*/pkgrel=1/" "$PKGBUILD"
 }
 
+# Refresh uv.lock so the version it records follows pyproject.toml. Editing the
+# lockfile with sed would hit every package's version field, so let uv rewrite it.
+update_lockfile() {
+    if ! command -v uv >/dev/null 2>&1; then
+        log_warn "uv not found, leaving uv.lock at its current version"
+        return
+    fi
+    log_info "Refreshing uv.lock..."
+    (cd "$REPO_ROOT" && uv lock --quiet)
+}
+
 # Download tarball and calculate checksum
 update_pkgbuild_checksum() {
     local version="$1"
@@ -85,7 +97,7 @@ git_commit_and_tag() {
     local commit_msg="$2"
 
     log_info "Staging changes..."
-    git add "$PYPROJECT" "$PKGBUILD" "$SRCINFO"
+    git add "$PYPROJECT" "$PKGBUILD" "$SRCINFO" "$LOCKFILE"
 
     log_info "Creating commit..."
     git commit -m "$commit_msg"
@@ -146,6 +158,7 @@ do_release() {
     log_info "Step 1/7: Updating version numbers..."
     update_pyproject_version "$new_version"
     update_pkgbuild_version "$new_version"
+    update_lockfile
     log_success "Version numbers updated"
 
     # Step 2: Commit and tag (without checksum first)
