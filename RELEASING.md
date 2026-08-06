@@ -20,6 +20,26 @@ Example:
 ./release.sh 0.4.1
 ```
 
+## Partial Runs
+
+The seven steps run in one pass, and step 3 pushes a commit and a tag. Two flags
+cover the cases where that is not what you want.
+
+```bash
+./release.sh --dry-run 0.4.1     # bump locally, show the diff, revert
+./release.sh --aur-only 0.4.1    # step 7 alone
+```
+
+`--dry-run` applies the version bump to `pyproject.toml`, the PKGBUILD and
+`uv.lock`, prints the diff, and puts the working tree back. Use it to exercise a
+change to the local half of the script without spending a real release on it. It
+stops short of the checksum and `.SRCINFO`, which need the tag on GitHub.
+
+`--aur-only` publishes the already-committed PKGBUILD and `.SRCINFO` to the AUR.
+Use it when a run reached GitHub but the AUR push did not land — an outage, an
+SSH key problem, a PKGBUILD the AUR rejected. It refuses to run when the
+PKGBUILD's `pkgver` disagrees with the version you pass.
+
 ## Detailed Release Steps
 
 The script automatically executes the following steps:
@@ -28,6 +48,7 @@ The script automatically executes the following steps:
 - Update version in `pyproject.toml`
 - Update version in `aur/waybar-ai-usage/PKGBUILD`
 - Reset `pkgrel` to 1
+- Refresh `uv.lock` via `uv lock` (skipped with a warning if `uv` is absent)
 
 ### 2. Create Git Commit and Tag
 - Commit version update: `chore: bump version to X.Y.Z`
@@ -142,7 +163,7 @@ git push origin main --force
 
 A: Check the error message, fix the issue, then continue from the failed step:
 - If failed before pushing to GitHub: Delete tag and rerun
-- If failed before pushing to AUR: Manually complete remaining steps
+- If failed on the AUR push: Rerun `./release.sh --aur-only X.Y.Z` once the cause is cleared
 
 ### Q: Checksum calculation failed?
 

@@ -136,6 +136,54 @@ push_to_aur() {
     rm -rf "$aur_tmpdir"
 }
 
+# Exercise the local half of a release and roll it back. Steps 4 onward need the
+# tag to exist on GitHub, so the checksum and .SRCINFO stay unverified here.
+do_dry_run() {
+    local new_version="$1"
+
+    log_info "Dry run for ${new_version}: local edits only, nothing is committed or pushed"
+    update_pyproject_version "$new_version"
+    update_pkgbuild_version "$new_version"
+    update_lockfile
+
+    echo ""
+    git --no-pager diff -- "$PYPROJECT" "$PKGBUILD" "$LOCKFILE"
+    echo ""
+
+    log_info "Reverting the working tree..."
+    git restore -- "$PYPROJECT" "$PKGBUILD" "$LOCKFILE"
+    log_success "Dry run complete"
+    log_warn "Not covered: the tarball checksum and .SRCINFO, both of which need the tag on GitHub"
+}
+
+# Step 7 on its own, for when the AUR push is the only thing left — an AUR
+# outage, an expired SSH key, a rejected PKGBUILD. Everything it needs is
+# already committed by then.
+do_aur_only() {
+    local version="$1"
+    local pkgver
+    pkgver=$(grep '^pkgver=' "$PKGBUILD" | cut -d= -f2)
+
+    if [[ "$pkgver" != "$version" ]]; then
+        log_error "PKGBUILD is at ${pkgver}, not ${version}"
+        log_error "Run the full release first; this mode only republishes what is already committed."
+        exit 1
+    fi
+
+    log_info "Publishing ${version} to AUR from the committed PKGBUILD and .SRCINFO"
+    echo ""
+    read -p "Proceed? (y/N): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_warn "Cancelled."
+        exit 0
+    fi
+
+    push_to_aur "$version"
+    log_success "Pushed to AUR"
+    log_info "AUR package: https://aur.archlinux.org/packages/waybar-ai-usage"
+}
+
 # Main release function
 do_release() {
     local new_version="$1"
@@ -202,17 +250,38 @@ do_release() {
 }
 
 # Parse command line arguments
+usage() {
+    local current_version
+    current_version=$(get_current_version)
+    echo "waybar-ai-usage release script"
+    echo ""
+    echo "Current version: $current_version"
+    echo ""
+    echo "Usage: $0 [--dry-run | --aur-only] <version>"
+    echo ""
+    echo "  (no flag)     full release: bump, tag, push to GitHub, push to AUR"
+    echo "  --dry-run     apply the version bump locally, show the diff, revert"
+    echo "  --aur-only    push an already-released version to AUR"
+    echo ""
+    echo "Example: $0 0.4.1"
+}
+
 main() {
     cd "$REPO_ROOT"
 
+    local mode="release"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run)  mode="dry-run";  shift ;;
+            --aur-only) mode="aur-only"; shift ;;
+            -h|--help)  usage; exit 0 ;;
+            -*)         log_error "Unknown option: $1"; echo ""; usage; exit 1 ;;
+            *)          break ;;
+        esac
+    done
+
     if [[ $# -eq 0 ]]; then
-        current_version=$(get_current_version)
-        echo "waybar-ai-usage release script"
-        echo ""
-        echo "Current version: $current_version"
-        echo ""
-        echo "Usage: $0 <new-version>"
-        echo "Example: $0 0.4.1"
+        usage
         exit 1
     fi
 
@@ -243,7 +312,11 @@ main() {
         fi
     fi
 
-    do_release "$new_version"
+    case "$mode" in
+        dry-run)  do_dry_run  "$new_version" ;;
+        aur-only) do_aur_only "$new_version" ;;
+        release)  do_release  "$new_version" ;;
+    esac
 }
 
 main "$@"
