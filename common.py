@@ -200,6 +200,16 @@ def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[di
         if cookies:
             return cookies, name
 
+        # browser_cookie3.firefox returns an empty jar (no exception) when
+        # ~/.mozilla/firefox doesn't exist, so the XDG fallback must also
+        # run on the empty-result path, not just on exceptions.
+        if name == "firefox":
+            cj = _firefox_xdg_fallback(domain)
+            if cj is not None:
+                cookies = {c.name: c.value for c in cj}
+                if cookies:
+                    return cookies, name
+
         errors.append(f"{name}: no cookies found")
 
     detail = "; ".join(errors) if errors else "no browsers provided"
