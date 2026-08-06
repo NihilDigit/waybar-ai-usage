@@ -200,9 +200,11 @@ def load_cookies(domain: str, browsers: Iterable[str] | None = None) -> tuple[di
         if cookies:
             return cookies, name
 
-        # browser_cookie3.firefox returns an empty jar (no exception) when
-        # ~/.mozilla/firefox doesn't exist, so the XDG fallback must also
-        # run on the empty-result path, not just on exceptions.
+        # When no legacy profile directory exists at all, browser_cookie3
+        # raises and the except branch above catches it. It returns an empty
+        # jar instead when ~/.mozilla/firefox holds a readable profile that
+        # has no cookies for this domain — a stale legacy profile sitting
+        # next to the real XDG one. That case lands here, not in the except.
         if name == "firefox":
             cj = _firefox_xdg_fallback(domain)
             if cj is not None:
