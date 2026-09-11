@@ -37,31 +37,30 @@ CACHE_TTL = 120  # Cache for 120 seconds
 def _parse_balance_from_html(html_content: str) -> float | None:
     """Parse balance from HTML content using various patterns"""
 
-    # Pattern 1: JS state object — balance:<number> (integer or decimal)
-    # e.g. balance:0  or  balance:19.43
+    # Pattern 1: rendered balance element (authoritative display value)
+    # e.g. data-slot="balance">Current balance <b>$<!--$-->40.04<!--/-->
     balance_match = re.search(
-        r"balance:([0-9]+(?:\.[0-9]+)?)",
-        html_content,
-    )
-    if balance_match:
-        return float(balance_match.group(1))
-
-    # Pattern 2: data-slot="balance" structure with HTML comments (legacy)
-    balance_match = re.search(
-        r'data-slot="balance"[^>]*>.*?Current balance.*?<b>\$\s*<!--\$-->([0-9]+\.[0-9]{2})<!--/-->',
+        r'data-slot="balance"[^>]*>.*?Current balance.*?<b>\$\s*(?:<!--\$-->)?([0-9]+(?:\.[0-9]+)?)',
         html_content,
         re.DOTALL,
     )
     if balance_match:
         return float(balance_match.group(1))
 
-    # Pattern 3: Simple "Current balance $XX.XX" pattern (legacy)
+    # Pattern 2: simple "Current balance $XX.XX" text
     balance_match = re.search(
         r"Current balance\s*\$\s*([0-9]+\.[0-9]{2})",
         html_content,
     )
     if balance_match:
         return float(balance_match.group(1))
+
+    # Pattern 3: JS state object — balance:<number> in 1e-8 dollar units
+    # e.g. balance:4003610502 = $40.03610502; a decimal value is already dollars.
+    balance_match = re.search(r"balance:([0-9]+(?:\.[0-9]+)?)", html_content)
+    if balance_match:
+        value = float(balance_match.group(1))
+        return value if "." in balance_match.group(1) else value / 1e8
 
     return None
 
