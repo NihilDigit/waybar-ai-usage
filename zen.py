@@ -201,10 +201,10 @@ def main() -> None:
                 else "Err"
             )
             tooltip = f"Error fetching Zen balance:\n{err_msg}"
-            if is_http_auth:
+            if "401" in err_msg:
                 if open_login_url(LOGIN_URLS["opencode.ai"]):
                     tooltip += "\n\nOpened login page — log in then click to refresh"
-            else:
+            elif not is_http_auth:
                 tooltip += "\n\nMake sure you're logged into opencode.ai/zen"
             print(
                 json.dumps(

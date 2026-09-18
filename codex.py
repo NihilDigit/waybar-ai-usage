@@ -293,7 +293,7 @@ def main() -> None:
             is_cookie = "cookie" in err_lower
             short_err = "Auth Err" if (is_http_auth or is_cookie) else "Net Err"
             tooltip = f"Error:\n{err_msg}"
-            if is_http_auth:
+            if "401" in err_msg:
                 if open_login_url(LOGIN_URLS["chatgpt.com"]):
                     tooltip += "\n\nOpened login page — log in then click to refresh"
             print(json.dumps({
